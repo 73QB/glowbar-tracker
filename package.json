@@ -1,0 +1,12 @@
+{
+  "name": "glowbar-tracker",
+  "version": "1.0.0",
+  "description": "Hệ thống theo dõi tiến độ dự án cá nhân bằng thanh năng lượng phát sáng (Dynamic Glow Progress Bar Tracker)",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "python -m http.server 8080"
+  },
+  "license": "MIT"
+}
+

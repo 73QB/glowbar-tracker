@@ -1,0 +1,26 @@
+{
+  "name": "GlowBar Tracker — Thanh Năng Lượng Tiến Độ",
+  "short_name": "GlowBar",
+  "description": "Hệ thống theo dõi tiến độ dự án cá nhân kết hợp thanh năng lượng phát sáng Dynamic Glow, tính toán 2 chế độ linh hoạt và đồng bộ đám mây miễn phí.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#06080f",
+  "theme_color": "#00f0ff",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%2306080f'/%3E%3Crect x='24' y='72' width='144' height='48' rx='24' fill='%23121a2b' stroke='%2300f0ff' stroke-width='6'/%3E%3Crect x='32' y='80' width='104' height='32' rx='16' fill='%2300f0ff'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%2306080f'/%3E%3Crect x='64' y='192' width='384' height='128' rx='64' fill='%23121a2b' stroke='%2300f0ff' stroke-width='16'/%3E%3Crect x='84' y='212' width='280' height='88' rx='44' fill='%2300f0ff'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

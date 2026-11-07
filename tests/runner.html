@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>GlowBar Automated Test Suite (Lớp 3 Verification)</title>
+</head>
+<body style="background:#06080f; color:#f1f5f9; font-family:monospace; padding:24px;">
+  <h1>GlowBar Automated Verification Report (AC01 - AC09 &amp; E01 - E07)</h1>
+  <pre id="testSummary">RUNNING...</pre>
+  <ul id="testDetails"></ul>
+
+  <script type="module">
+    import { runAllSuites } from './test-harness.js';
+    import './models.test.js';
+    import './calculator.test.js';
+    import './glow.test.js';
+    import './timer.test.js';
+    import './sync.test.js';
+    import './ui.test.js';
+
+    const report = await runAllSuites();
+    const summaryEl = document.getElementById('testSummary');
+    const detailsEl = document.getElementById('testDetails');
+
+    summaryEl.textContent = JSON.stringify({
+      status: report.failed === 0 ? 'ALL_PASS' : 'FAILED',
+      total: report.total,
+      passed: report.passed,
+      failed: report.failed
+    });
+
+    for (const item of report.details) {
+      const li = document.createElement('li');
+      li.textContent = `[${item.status}] ${item.suite} :: ${item.name}${item.error ? ' -> ' + item.error : ''}`;
+      detailsEl.appendChild(li);
+    }
+
+    try {
+      await fetch('/__report__', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(report)
+      });
+    } catch {
+      // Bỏ qua nếu mở trực tiếp không qua verify server
+    }
+  </script>
+</body>
+</html>

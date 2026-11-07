@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="positivus">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="description" content="Hệ thống theo dõi tiến độ dự án cá nhân kết hợp thanh năng lượng phát sáng Dynamic Glow, tính toán 2 chế độ linh hoạt và đồng bộ đám mây miễn phí." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>GlowBar Tracker — Hệ Thống Tiến Độ Dự Án Cá Nhân</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23191a23'/%3E%3Crect x='10' y='24' width='44' height='16' rx='8' fill='%23b9ff66' stroke='%23191a23' stroke-width='2'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./src/styles/main.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- HEADER ĐIỀU KHIỂN CHÍNH -->
+    <header class="top-bar">
+      <div class="top-bar__brand">
+        <div class="brand-logo" aria-hidden="true">
+          <span class="brand-logo__core"></span>
+        </div>
+        <div>
+          <h1 class="top-bar__title">GLOWBAR <span class="top-bar__badge">ENERGY TRACKER</span></h1>
+          <p class="top-bar__subtitle">Thanh năng lượng phát sáng phân cấp · Lộ trình cố định &amp; Quỹ thời gian</p>
+        </div>
+      </div>
+
+      <div class="top-bar__actions">
+        <button type="button" id="btnUndoAction" class="btn btn--ghost btn--undo" title="Hoàn tác thao tác vừa rồi (Ctrl + Z)" disabled>
+          ↩ Hoàn Tác
+        </button>
+        <button type="button" id="btnOpenCloudModal" class="btn btn--ghost" title="Cấu hình đồng bộ đám mây Firebase Firestore">
+          <span class="sync-dot" id="syncStatusDot" data-state="offline"></span>
+          <span id="syncStatusText">Offline · LocalStorage</span>
+        </button>
+        <button type="button" id="btnOpenNewProjectModal" class="btn btn--primary">
+          + Tạo Dự Án Mới
+        </button>
+      </div>
+    </header>
+
+    <!-- THỐNG KÊ TỔNG QUAN NHANH (KPI CARDS) -->
+    <section class="kpi-strip" aria-label="Tổng quan năng lượng">
+      <div class="kpi-card">
+        <span class="kpi-card__label">Tổng Dự Án (Master-bars)</span>
+        <strong class="kpi-card__value" id="kpiTotalProjects">0</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Năng Lượng Trung Bình</span>
+        <strong class="kpi-card__value kpi-card__value--cyan" id="kpiAvgProgress">0.0%</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Đầu Việc Hoàn Tất</span>
+        <strong class="kpi-card__value" id="kpiCompletedSubTasks">0 / 0</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Tổng Giờ Đã Tích Lũy</span>
+        <strong class="kpi-card__value kpi-card__value--purple" id="kpiTotalHours">0.0h</strong>
+      </div>
+    </section>
+
+    <!-- BỐ CỤC CHÍNH ĐA THIẾT BỊ (DESKTOP 2 CỘT / MOBILE 1 CỘT) -->
+    <main class="dashboard-grid">
+      <!-- CỘT TRÁI: DANH SÁCH MASTER-BAR & ACCORDION SUB-BAR -->
+      <section class="projects-column" aria-label="Danh sách thanh dự án">
+        <div class="section-header">
+          <h2 class="section-header__title">Hệ Thống Thanh Dự Án (Master-bars)</h2>
+          <span class="section-header__hint">Bấm vào thanh dự án để mở rộng / thu gọn đầu việc nhỏ</span>
+        </div>
+
+        <div id="projectsContainer" class="projects-list">
+          <!-- Render động bởi src/ui/app.js -->
+        </div>
+      </section>
+
+      <!-- CỘT PHẢI: TRẠM ĐẾM GIỜ FOCUS TIMER & HƯỚNG DẪN CHẾ ĐỘ -->
+      <aside class="control-column" aria-label="Bộ đếm giờ tập trung Focus Timer">
+        <div class="timer-dock" id="timerDock">
+          <div class="timer-dock__header">
+            <span class="timer-dock__tag">⚡ FOCUS TIMER</span>
+            <span class="timer-dock__status" id="timerStateBadge">Sẵn sàng</span>
+          </div>
+
+          <div class="timer-display" id="timerDisplayRing">
+            <div class="timer-display__time" id="timerClockText">25:00</div>
+            <div class="timer-display__target" id="timerTargetLabel">Chọn một đầu việc bên dưới để bắt đầu</div>
+            <div class="timer-mini-bar">
+              <div class="timer-mini-bar__fill" id="timerProgressBar" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div class="timer-form">
+            <label class="form-label" for="timerSubTaskSelect">Đầu việc đang tập trung (Sub-bar)</label>
+            <select id="timerSubTaskSelect" class="form-select">
+              <option value="">-- Chọn công việc cần bấm giờ --</option>
+            </select>
+
+            <div class="timer-presets" role="group" aria-label="Chọn nhanh thời lượng">
+              <button type="button" class="preset-btn" data-minutes="15">15 phút</button>
+              <button type="button" class="preset-btn preset-btn--active" data-minutes="25">25 phút</button>
+              <button type="button" class="preset-btn" data-minutes="45">45 phút</button>
+              <button type="button" class="preset-btn" data-minutes="60">60 phút</button>
+            </div>
+
+            <div class="timer-custom-row">
+              <label for="timerCustomMinutes" class="form-label">Thời lượng (phút):</label>
+              <input type="number" id="timerCustomMinutes" class="form-input form-input--compact" min="1" max="480" step="1" value="25" />
+            </div>
+
+            <div class="timer-controls">
+              <button type="button" id="btnTimerStartPause" class="btn btn--primary btn--full">
+                ▶ Bắt Đầu Tập Trung
+              </button>
+              <div class="timer-controls__secondary">
+                <button type="button" id="btnTimerCompleteNow" class="btn btn--success" title="Hoàn thành phiên ngay và cộng điểm tiến độ vào thanh bar">
+                  ✓ Hoàn tất &amp; Nhích Bar
+                </button>
+                <button type="button" id="btnTimerFastForward" class="btn btn--ghost" title="Tua nhanh +5 phút để kiểm thử hiệu ứng tăng thanh bar tức thì">
+                  ⏩ +5p (Test)
+                </button>
+                <button type="button" id="btnTimerReset" class="btn btn--danger-ghost" title="Hủy phiên đếm giờ">
+                  ✕ Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- THẺ GIẢI THÍCH 2 CHẾ ĐỘ TÍNH TOÁN -->
+        <div class="mode-guide-card">
+          <h3 class="mode-guide-card__title">Cơ Chế Tính Toán Kép</h3>
+          <ul class="mode-guide-list">
+            <li>
+              <strong>⚖️ Chế độ Lộ trình cố định (Fixed):</strong>
+              Gắn trọng số cho từng đầu việc; thanh Master-bar tự động tính phần trăm trung bình có trọng số.
+            </li>
+            <li>
+              <strong>⏳ Chế độ Quỹ thời gian (Time Pool):</strong>
+              Đặt mục tiêu tổng số giờ dự kiến. Thoải mái thêm việc mới phát sinh mà <em>không làm tụt phần trăm</em> đã tích lũy.
+            </li>
+            <li>
+              <strong>🚀 Nâng cấp mục tiêu (Level Up):</strong>
+              Khi đạt 100% quỹ giờ mà vẫn còn việc dở dang, mở rộng thêm số giờ mục tiêu hoặc chuyển sang chế độ cố định để chốt dự án.
+            </li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- MODAL 1: TẠO DỰ ÁN MỚI (MASTER-BAR) -->
+  <dialog id="modalNewProject" class="modal">
+    <form id="formNewProject" class="modal__box" method="dialog">
+      <div class="modal__header">
+        <h3 class="modal__title">Khởi Tạo Thanh Dự Án Mới (Master-bar)</h3>
+        <button type="button" class="modal__close" data-close-modal="modalNewProject" aria-label="Đóng">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <label class="form-label" for="inputProjectTitle">Tên dự án lớn</label>
+        <input type="text" id="inputProjectTitle" class="form-input" placeholder="VD: Học tiếng Nhật N3 / Xây dựng Portfolio" required />
+
+        <label class="form-label" for="inputProjectMode">Chế độ tính toán tiến độ</label>
+        <select id="inputProjectMode" class="form-select">
+          <option value="fixed">⚖️ Lộ trình cố định (Đã rõ các bước &amp; trọng số)</option>
+          <option value="time_pool">⏳ Quỹ thời gian (Đặt tổng giờ mục tiêu, thêm việc không tụt %)</option>
+        </select>
+
+        <div id="groupTargetHours" class="form-group">
+          <label class="form-label" for="inputProjectTargetHours">Tổng số giờ mục tiêu (Quỹ thời gian)</label>
+          <input type="number" id="inputProjectTargetHours" class="form-input" min="0.5" max="10000" step="0.5" value="10" />
+          <small class="form-hint">Khi tích lũy đủ 100% số giờ này, bạn có thể Level Up mở rộng thêm giờ.</small>
+        </div>
+
+        <label class="form-label" for="inputProjectColor">Màu ánh sáng năng lượng (Dynamic Glow)</label>
+        <div class="color-picker-row">
+          <input type="color" id="inputProjectColor" class="form-color" value="#2563eb" />
+          <div class="color-swatches">
+            <button type="button" class="color-swatch" data-color="#2563eb" style="--swatch:#2563eb" title="Electric Blue"></button>
+            <button type="button" class="color-swatch" data-color="#7c3aed" style="--swatch:#7c3aed" title="Purple Iris"></button>
+            <button type="button" class="color-swatch" data-color="#10b981" style="--swatch:#10b981" title="Emerald Growth"></button>
+            <button type="button" class="color-swatch" data-color="#f59e0b" style="--swatch:#f59e0b" title="Solar Amber"></button>
+            <button type="button" class="color-swatch" data-color="#e11d48" style="--swatch:#e11d48" title="Coral Rose"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn btn--ghost" data-close-modal="modalNewProject">Hủy</button>
+        <button type="submit" class="btn btn--primary">Tạo Thanh Năng Lượng</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- MODAL 2: LEVEL UP MỤC TIÊU (F07) -->
+  <dialog id="modalLevelUp" class="modal">
+    <form id="formLevelUp" class="modal__box" method="dialog">
+      <div class="modal__header">
+        <h3 class="modal__title">🚀 Nâng Cấp Mục Tiêu Dự Án (Level Up!)</h3>
+        <button type="button" class="modal__close" data-close-modal="modalLevelUp" aria-label="Đóng">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <p class="modal__desc" id="levelUpProjectDesc">
+          Dự án đã chạm mốc <strong>100% quỹ thời gian</strong> nhưng vẫn còn đầu việc đang thực hiện. Hãy chọn cách nâng cấp mục tiêu:
+        </p>
+        <input type="hidden" id="levelUpProjectId" />
+
+        <div class="levelup-options">
+          <label class="radio-card">
+            <input type="radio" name="levelUpAction" value="add_hours" checked />
+            <div class="radio-card__content">
+              <strong>⏳ Mở rộng thêm Quỹ thời gian (Tăng Level)</strong>
+              <span>Cộng thêm số giờ mục tiêu để tiếp tục tích lũy năng lượng ở cấp độ mới.</span>
+              <div class="levelup-extra-input">
+                <span>Cộng thêm (giờ):</span>
+                <input type="number" id="inputLevelUpExtraHours" class="form-input form-input--compact" min="0.5" max="1000" step="0.5" value="5" />
+              </div>
+            </div>
+          </label>
+
+          <label class="radio-card">
+            <input type="radio" name="levelUpAction" value="switch_fixed" />
+            <div class="radio-card__content">
+              <strong>⚖️ Chuyển sang Chế độ Lộ trình cố định (Chốt giai đoạn cuối)</strong>
+              <span>Giữ nguyên phần trăm các đầu việc hiện có và tính thanh dự án chính theo trọng số để hoàn tất dứt điểm.</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn btn--ghost" data-close-modal="modalLevelUp">Để sau</button>
+        <button type="submit" class="btn btn--primary">Xác Nhận Nâng Cấp</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- MODAL 3: ĐỒNG BỘ ĐÁM MÂY FIREBASE FIRESTORE & SAO LƯU -->
+  <dialog id="modalCloudSync" class="modal">
+    <form id="formCloudSync" class="modal__box" method="dialog">
+      <div class="modal__header">
+        <h3 class="modal__title">☁️ Đồng Bộ Đám Mây Thời Gian Thực (Firebase Firestore)</h3>
+        <button type="button" class="modal__close" data-close-modal="modalCloudSync" aria-label="Đóng">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <p class="modal__desc">
+          Sử dụng gói miễn phí trọn đời của <strong>Firebase Firestore</strong> để đồng bộ tức thì giữa máy tính và điện thoại. Nếu để trống, ứng dụng tự động lưu an toàn trên thiết bị qua <code>localStorage</code>.
+        </p>
+
+        <label class="form-label" for="inputSyncKey">Mã kênh đồng bộ cá nhân (Sync Key)</label>
+        <input type="text" id="inputSyncKey" class="form-input" placeholder="VD: my_secret_workspace_2026" />
+
+        <label class="form-label" for="inputFirebaseProjectId">Firebase Project ID</label>
+        <input type="text" id="inputFirebaseProjectId" class="form-input" placeholder="VD: glowbar-tracker-app" />
+
+        <label class="form-label" for="inputFirebaseApiKey">Firebase Web API Key</label>
+        <input type="text" id="inputFirebaseApiKey" class="form-input" placeholder="VD: AIzaSy..." />
+
+        <label class="form-label" for="inputFirebaseAppId">Firebase App ID (Tùy chọn)</label>
+        <input type="text" id="inputFirebaseAppId" class="form-input" placeholder="VD: 1:123456789:web:abcdef" />
+
+        <hr class="divider" />
+        <div class="backup-row">
+          <button type="button" id="btnExportJson" class="btn btn--ghost">⬇ Xuất file JSON</button>
+          <button type="button" id="btnResetDemoData" class="btn btn--danger-ghost">↺ Khôi phục dữ liệu mẫu</button>
+        </div>
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" id="btnDisconnectCloud" class="btn btn--ghost">Chạy Offline</button>
+        <button type="submit" class="btn btn--primary">Lưu &amp; Kết Nối Đám Mây</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- TOAST THÔNG BÁO NHANH -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script type="module" src="./src/ui/app.js"></script>
+</body>
+</html>
+
