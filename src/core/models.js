@@ -9,6 +9,20 @@ export const MIN_TARGET_HOURS = 0.5;
 export const DEFAULT_WEIGHT = 1;
 export const DEFAULT_ESTIMATED_MINUTES = 60;
 export const DEFAULT_THEME_COLOR = '#2563eb';
+export const MAX_PINNED_PROJECTS = 3;
+
+/**
+ * Chuyển dấu thời gian (ms) sang khóa ngày chuẩn YYYY-MM-DD theo giờ địa phương
+ * @param {number} [timestampMs]
+ * @returns {string}
+ */
+export function formatDateKey(timestampMs = Date.now()) {
+  const d = new Date(Number.isFinite(Number(timestampMs)) ? Number(timestampMs) : Date.now());
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 /**
  * Làm tròn đến 1 chữ số thập phân và kẹp trong khoảng [min, max] (R103)
@@ -31,7 +45,7 @@ export function clampAndRound(value, min = 0, max = 100) {
  * @param {string} prefix
  * @returns {string}
  */
-function generateId(prefix = 'id') {
+export function generateId(prefix = 'id') {
   const randomPart = Math.random().toString(36).substring(2, 8);
   return `${prefix}_${Date.now().toString(36)}_${randomPart}`;
 }
@@ -62,13 +76,16 @@ export function createSubTask(input = {}) {
     ? Math.round(rawSpent * 10) / 10
     : 0;
 
+  const note = typeof input.note === 'string' ? input.note.trim() : '';
+
   return {
     id: typeof input.id === 'string' && input.id.trim() ? input.id.trim() : generateId('sub'),
     title,
     weight,
     estimatedMinutes,
     progressPercent,
-    spentMinutes
+    spentMinutes,
+    note
   };
 }
 
@@ -99,12 +116,29 @@ export function createProject(input = {}) {
     ? input.themeColor.trim()
     : DEFAULT_THEME_COLOR;
 
+  const pinned = Boolean(input.pinned);
+  const archived = Boolean(input.archived);
+
   const subTasks = Array.isArray(input.subTasks)
     ? input.subTasks.map((st) => createSubTask(st))
     : [];
 
   const createdAt = Number.isFinite(Number(input.createdAt)) ? Number(input.createdAt) : now;
   const updatedAt = Number.isFinite(Number(input.updatedAt)) ? Number(input.updatedAt) : now;
+  const lastProgressAt = Number.isFinite(Number(input.lastProgressAt))
+    ? Number(input.lastProgressAt)
+    : updatedAt;
+
+  const progressHistory = Array.isArray(input.progressHistory)
+    ? input.progressHistory
+        .filter((h) => h && typeof h.date === 'string')
+        .slice(-60)
+        .map((h) => ({
+          date: h.date,
+          deltaMinutes: Math.max(0, Math.round((Number(h.deltaMinutes) || 0) * 10) / 10),
+          deltaPercent: Math.max(0, Math.round((Number(h.deltaPercent) || 0) * 10) / 10)
+        }))
+    : [];
 
   return {
     id: typeof input.id === 'string' && input.id.trim() ? input.id.trim() : generateId('proj'),
@@ -113,9 +147,13 @@ export function createProject(input = {}) {
     targetHours,
     level,
     themeColor,
+    pinned,
+    archived,
     subTasks,
     createdAt,
-    updatedAt
+    updatedAt,
+    lastProgressAt,
+    progressHistory
   };
 }
 

@@ -4,12 +4,21 @@
  */
 
 import { describe, it, assert } from './test-harness.js';
-import { createProject } from '../src/core/models.js';
+import { createProject, formatDateKey } from '../src/core/models.js';
 import {
   calculateMasterProgress,
   applyQuickAction,
   applyTimerMinutes,
-  levelUpProject
+  levelUpProject,
+  updateProjectDetails,
+  updateSubTaskDetails,
+  cloneProjectTemplate,
+  reorderSubTasks,
+  togglePinProject,
+  toggleArchiveProject,
+  checkProjectFrozen,
+  forecastProjectCompletion,
+  calculateStreakAndHeatmap
 } from '../src/core/calculator.js';
 
 describe('M05 · calculator.js — Lõi tính toán 2 chế độ & Level Up', () => {
@@ -107,6 +116,107 @@ describe('M05 · calculator.js — Lõi tính toán 2 chế độ & Level Up', (
     const rollbacked = applyQuickAction(updated, 'sub1', -15);
     assert.equal(rollbacked.subTasks[0].progressPercent, 85, 'Giảm đúng 15% khi lỡ bấm nhầm');
     assert.equal(rollbacked.subTasks[0].spentMinutes, 85, 'Quy đổi giảm đúng 15 phút');
+  });
+
+  it('Sửa tại chỗ, Ghi chú nhanh, Nhân bản mẫu & Kéo thả sắp xếp đảm bảo bất biến (R102)', () => {
+    const base = createProject({
+      id: 'p1',
+      title: 'Dự án Gốc',
+      mode: 'time_pool',
+      targetHours: 10,
+      subTasks: [
+        { id: 's1', title: 'Việc 1', weight: 2, estimatedMinutes: 60, progressPercent: 80, spentMinutes: 48, note: 'Ghi chú 1' },
+        { id: 's2', title: 'Việc 2', weight: 4, estimatedMinutes: 120, progressPercent: 50, spentMinutes: 60, note: '' }
+      ]
+    });
+
+    const editedProj = updateProjectDetails(base, { title: 'Dự án Đã Đổi Tên', targetHours: 20 });
+    assert.equal(editedProj.title, 'Dự án Đã Đổi Tên');
+    assert.equal(editedProj.targetHours, 20);
+    assert.equal(base.title, 'Dự án Gốc', 'Bất biến object gốc');
+
+    const editedSub = updateSubTaskDetails(base, 's2', {
+      title: 'Việc 2 Mới',
+      weight: 5,
+      estimatedMinutes: 90,
+      note: 'https://docs.example.com'
+    });
+    assert.equal(editedSub.subTasks[1].title, 'Việc 2 Mới');
+    assert.equal(editedSub.subTasks[1].weight, 5);
+    assert.equal(editedSub.subTasks[1].note, 'https://docs.example.com');
+
+    const reordered = reorderSubTasks(base, 0, 1);
+    assert.equal(reordered.subTasks[0].id, 's2');
+    assert.equal(reordered.subTasks[1].id, 's1');
+
+    const cloned = cloneProjectTemplate(base);
+    assert.ok(cloned.id !== base.id);
+    assert.ok(cloned.title.includes('(Bản sao)'));
+    assert.equal(cloned.subTasks.length, 2);
+    assert.equal(cloned.subTasks[0].weight, 2);
+    assert.equal(cloned.subTasks[0].progressPercent, 0, 'Nhân bản mẫu phải reset tiến độ về 0%');
+    assert.equal(cloned.subTasks[0].spentMinutes, 0);
+  });
+
+  it('Ghim tối đa 3 dự án, Lưu trữ, Cảnh báo đóng băng (> 7 ngày) & Dự báo đích (ETA) & Streak Heatmap', () => {
+    const list = [
+      createProject({ id: 'p1', title: 'P1', pinned: true }),
+      createProject({ id: 'p2', title: 'P2', pinned: true }),
+      createProject({ id: 'p3', title: 'P3', pinned: true }),
+      createProject({ id: 'p4', title: 'P4', pinned: false })
+    ];
+
+    const overPin = togglePinProject(list, 'p4', 3);
+    assert.equal(overPin.success, false);
+    assert.equal(overPin.reason, 'MAX_PINNED_REACHED');
+
+    const unpinP1 = togglePinProject(list, 'p1', 3);
+    assert.equal(unpinP1.success, true);
+    assert.equal(unpinP1.pinnedState, false);
+
+    const archived = toggleArchiveProject(list[0]);
+    assert.equal(archived.archived, true);
+    assert.equal(archived.pinned, false, 'Lưu trữ tự động bỏ ghim');
+
+    const nowMs = Date.now();
+    const tenDaysAgo = nowMs - 10 * 86400000;
+    const coldProj = createProject({
+      title: 'Dự án Nguội',
+      createdAt: tenDaysAgo,
+      updatedAt: tenDaysAgo,
+      lastProgressAt: tenDaysAgo,
+      subTasks: [{ title: 'Chưa xong', progressPercent: 20 }]
+    });
+    const frozenStatus = checkProjectFrozen(coldProj, nowMs, 7);
+    assert.equal(frozenStatus.isFrozen, true);
+    assert.equal(frozenStatus.idleDays, 10);
+
+    const activeProj = createProject({
+      title: 'Dự án Đang Tăng Tốc',
+      mode: 'time_pool',
+      targetHours: 10, // 600 phút
+      createdAt: nowMs - 2 * 86400000,
+      progressHistory: [
+        { date: formatDateKey(nowMs), deltaMinutes: 200, deltaPercent: 33.3 }
+      ],
+      subTasks: [{ title: 'Đang làm', spentMinutes: 200, progressPercent: 50 }]
+    });
+    const forecast = forecastProjectCompletion(activeProj, nowMs);
+    assert.equal(forecast.status, 'active');
+    assert.ok(forecast.daysRemaining > 0);
+    assert.ok(forecast.label.includes('Dự kiến đích'));
+
+    const streakRes = calculateStreakAndHeatmap(
+      {
+        [formatDateKey(nowMs - 2 * 86400000)]: { count: 1, minutes: 25 },
+        [formatDateKey(nowMs - 86400000)]: { count: 2, minutes: 50 },
+        [formatDateKey(nowMs)]: { count: 1, minutes: 30 }
+      },
+      nowMs,
+      28
+    );
+    assert.equal(streakRes.currentStreak, 3);
+    assert.equal(streakRes.cells.length, 28);
   });
 });
 

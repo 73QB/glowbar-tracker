@@ -1293,6 +1293,494 @@ body {
   transform: translateY(-1px);
 }
 
+/* ==================== FILTER TABS (PIN & ARCHIVE) ==================== */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  padding: 9px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0px 3px 0px #191a23;
+  transition: all 0.15s ease;
+}
+
+.filter-tab:hover {
+  background: var(--color-gray);
+}
+
+.filter-tab--active {
+  background: var(--color-lime);
+  color: var(--color-dark);
+}
+
+/* ==================== DRAG & DROP & INLINE EDIT ==================== */
+.drag-handle {
+  cursor: grab;
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  user-select: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.is-dragging {
+  opacity: 0.55;
+  transform: scale(0.99);
+}
+
+.drag-over-target {
+  outline: 2px dashed var(--color-dark);
+  outline-offset: 3px;
+}
+
+.btn-icon-inline {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 2px 7px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  box-shadow: 0px 2px 0px #191a23;
+  transition: transform 0.12s ease;
+}
+
+.btn-icon-inline:hover {
+  background: var(--color-lime);
+  transform: translateY(-1px);
+}
+
+.inline-edit-box {
+  margin: 0 28px 18px;
+  padding: 16px 18px;
+  background: var(--color-white);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0px 4px 0px #191a23;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sub-bar--editing {
+  background: var(--color-white);
+  border: 2px solid var(--color-border);
+}
+
+.inline-edit-box__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.inline-edit-box__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+}
+
+.inline-edit-box__field--grow {
+  flex: 1 1 220px;
+}
+
+.inline-edit-box__field label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.inline-edit-box__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ==================== PROJECT QUICK TOOLBAR & SUBTASK NOTE ==================== */
+.project-quick-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--color-border);
+  flex-wrap: wrap;
+}
+
+.project-quick-toolbar__left,
+.project-quick-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sub-bar__note {
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+  background: var(--color-white);
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  word-break: break-word;
+}
+
+.sub-bar__note-link {
+  color: #2563eb;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.add-subtask-form__note {
+  grid-column: 1 / -1;
+}
+
+/* ==================== BADGES: PINNED, FROZEN WARNING & ETA FORECAST ==================== */
+.badge--pinned {
+  background: #fef08a;
+  color: #191a23;
+}
+
+.badge--frozen {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #0284c7;
+}
+
+.master-card--frozen {
+  border: 2px dashed #0284c7;
+}
+
+.badge--forecast {
+  background: var(--color-white);
+  color: var(--color-dark);
+}
+
+.badge--forecast-completed {
+  background: var(--color-lime);
+  color: var(--color-dark);
+}
+
+/* ==================== ANALYTICS CARDS: STREAK HEATMAP & TIMER LOGS ==================== */
+.analytics-card {
+  background: var(--color-gray);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 22px 24px;
+  box-shadow: var(--shadow-hard);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.analytics-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.analytics-card__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.streak-pill {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-lime);
+  color: var(--color-dark);
+  border: 1px solid var(--color-border);
+  box-shadow: 0px 2px 0px #191a23;
+}
+
+.streak-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.heatmap-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  transition: transform 0.12s ease;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.1);
+}
+
+.heatmap-cell--lv-0 {
+  background: var(--color-white);
+  color: var(--text-muted);
+}
+
+.heatmap-cell--lv-1 {
+  background: #ecfccb;
+  color: #191a23;
+}
+
+.heatmap-cell--lv-2 {
+  background: #d9f99d;
+  color: #191a23;
+}
+
+.heatmap-cell--lv-3 {
+  background: var(--color-lime);
+  color: #191a23;
+}
+
+.heatmap-cell--lv-4 {
+  background: var(--color-dark);
+  color: var(--color-lime);
+}
+
+.heatmap-cell--today {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.heatmap-legend__scale {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.heatmap-legend__scale .heatmap-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+/* Nhật ký phiên Focus Timer */
+.btn-mini-link {
+  background: transparent;
+  border: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.btn-mini-link:hover {
+  color: var(--accent-rose);
+}
+
+.timer-log-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.timer-log-stat {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.timer-log-stat span {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.timer-log-stat strong {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.timer-log-top {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.timer-logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.timer-logs-empty {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 0;
+}
+
+.timer-log-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.timer-log-item__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.timer-log-item__title {
+  font-size: 0.83rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timer-log-item__sub {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timer-log-item__badge {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--color-lime);
+  color: var(--color-dark);
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+/* ==================== GIAO DIỆN ĐÊM OLED DARK MODE ==================== */
+html[data-theme="oled_dark"] {
+  --bg-canvas: #05060b;
+  --color-gray: #0f1420;
+  --color-white: #161d2f;
+  --color-border: #334155;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  --shadow-hard: 0px 5px 0px #000000;
+  --shadow-hard-sm: 0px 3px 0px #000000;
+  --shadow-hard-lg: 0px 8px 0px #000000;
+}
+
+html[data-theme="oled_dark"] .master-card--expanded,
+html[data-theme="oled_dark"] .master-card--expanded .master-bar {
+  background: #131c31;
+  border-color: var(--color-lime);
+}
+
+html[data-theme="oled_dark"] .master-bar__percent,
+html[data-theme="oled_dark"] .sub-bar__title,
+html[data-theme="oled_dark"] .sub-bar__percent,
+html[data-theme="oled_dark"] .form-label,
+html[data-theme="oled_dark"] .mode-guide-card__title,
+html[data-theme="oled_dark"] .mode-guide-list strong {
+  color: #f8fafc;
+}
+
+html[data-theme="oled_dark"] .form-input,
+html[data-theme="oled_dark"] .form-select,
+html[data-theme="oled_dark"] .btn--ghost,
+html[data-theme="oled_dark"] .sub-bar__action-btn,
+html[data-theme="oled_dark"] .sub-bar__meta-tag,
+html[data-theme="oled_dark"] .badge--mode-fixed,
+html[data-theme="oled_dark"] .badge--mode-pool,
+html[data-theme="oled_dark"] .badge--milestone,
+html[data-theme="oled_dark"] .badge--forecast,
+html[data-theme="oled_dark"] .master-bar__meta code {
+  color: #f8fafc;
+  background: #1e293b;
+  border-color: #475569;
+}
+
+html[data-theme="oled_dark"] .sub-bar__action-btn--done {
+  background: var(--color-lime);
+  color: #05060b;
+}
+
+html[data-theme="oled_dark"] .energy-track {
+  background: #05060b;
+  border-color: #475569;
+}
+
+html[data-theme="oled_dark"] .energy-track__fill {
+  box-shadow: 0 0 var(--glow-blur, 18px) var(--glow-spread, 2px) var(--theme-color, #2563eb);
+}
+
+html[data-theme="oled_dark"] .heatmap-cell--lv-0 {
+  background: #161d2f;
+  color: #64748b;
+}
+
+html[data-theme="oled_dark"] .heatmap-cell--lv-4 {
+  background: var(--color-lime);
+  color: #05060b;
+  box-shadow: 0 0 8px rgba(185, 255, 102, 0.6);
+}
+
 /* ==================== RESPONSIVE MOBILE & TABLET (F04, C04) ==================== */
 @media (max-width: 960px) {
   .app-shell {

@@ -30,10 +30,13 @@
       </div>
 
       <div class="top-bar__actions">
+        <button type="button" id="btnToggleTheme" class="btn btn--ghost" title="Chuyển đổi giao diện Sáng (Positivus) / Tối thuần (OLED Dark)">
+          🌙 OLED Dark
+        </button>
         <button type="button" id="btnUndoAction" class="btn btn--ghost btn--undo" title="Hoàn tác thao tác vừa rồi (Ctrl + Z)" disabled>
           ↩ Hoàn Tác
         </button>
-        <button type="button" id="btnOpenCloudModal" class="btn btn--ghost" title="Cấu hình đồng bộ đám mây Firebase Firestore">
+        <button type="button" id="btnOpenCloudModal" class="btn btn--ghost" title="Cấu hình đồng bộ đám mây Firebase Firestore &amp; Sao lưu JSON">
           <span class="sync-dot" id="syncStatusDot" data-state="offline"></span>
           <span id="syncStatusText">Offline · LocalStorage</span>
         </button>
@@ -69,7 +72,20 @@
       <section class="projects-column" aria-label="Danh sách thanh dự án">
         <div class="section-header">
           <h2 class="section-header__title">Hệ Thống Thanh Dự Án (Master-bars)</h2>
-          <span class="section-header__hint">Bấm vào thanh dự án để mở rộng / thu gọn đầu việc nhỏ</span>
+          <span class="section-header__hint">Nhấp đúp tiêu đề để sửa nhanh · Giữ kéo ⠿ để sắp xếp thứ tự</span>
+        </div>
+
+        <!-- THANH LỌC GHIM & LƯU TRỮ (PIN & ARCHIVE TABS) -->
+        <div class="filter-bar" id="projectFilterBar" role="tablist" aria-label="Bộ lọc trạng thái dự án">
+          <button type="button" class="filter-tab filter-tab--active" data-filter="active" id="tabFilterActive">
+            ⚡ Đang chạy (<span id="countActiveProjects">0</span>)
+          </button>
+          <button type="button" class="filter-tab" data-filter="pinned" id="tabFilterPinned">
+            📌 Đã ghim (<span id="countPinnedProjects">0</span>/3)
+          </button>
+          <button type="button" class="filter-tab" data-filter="archived" id="tabFilterArchived">
+            📦 Lưu trữ (<span id="countArchivedProjects">0</span>)
+          </button>
         </div>
 
         <div id="projectsContainer" class="projects-list">
@@ -77,7 +93,7 @@
         </div>
       </section>
 
-      <!-- CỘT PHẢI: TRẠM ĐẾM GIỜ FOCUS TIMER & HƯỚNG DẪN CHẾ ĐỘ -->
+      <!-- CỘT PHẢI: TRẠM ĐẾM GIỜ FOCUS TIMER, CHUỖI GIỮ LỬA HEATMAP & NHẬT KÝ GIỜ -->
       <aside class="control-column" aria-label="Bộ đếm giờ tập trung Focus Timer">
         <div class="timer-dock" id="timerDock">
           <div class="timer-dock__header">
@@ -127,6 +143,57 @@
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- THẺ CHUỖI GIỮ LỬA & BIỂU ĐỒ NHIỆT (STREAK & HEATMAP 28 NGÀY) -->
+        <div class="analytics-card" id="streakHeatmapCard">
+          <div class="analytics-card__header">
+            <h3 class="analytics-card__title">🔥 Chuỗi Giữ Lửa &amp; Heatmap</h3>
+            <span class="streak-pill" id="streakCurrentBadge">🔥 0 ngày</span>
+          </div>
+          <div class="streak-stats-row">
+            <span>Kỷ lục dài nhất: <strong id="streakBestValue">0 ngày</strong></span>
+            <span>Tổng ngày hoạt động: <strong id="streakActiveDaysValue">0 ngày</strong></span>
+          </div>
+          <div class="heatmap-grid" id="heatmapGrid" aria-label="Biểu đồ mật độ làm việc 28 ngày gần nhất">
+            <!-- 28 ô vuông Heatmap render bởi app.js -->
+          </div>
+          <div class="heatmap-legend">
+            <span>28 ngày qua</span>
+            <div class="heatmap-legend__scale">
+              <span>Ít</span>
+              <span class="heatmap-cell heatmap-cell--lv-0"></span>
+              <span class="heatmap-cell heatmap-cell--lv-1"></span>
+              <span class="heatmap-cell heatmap-cell--lv-2"></span>
+              <span class="heatmap-cell heatmap-cell--lv-3"></span>
+              <span class="heatmap-cell heatmap-cell--lv-4"></span>
+              <span>Nhiều</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- THẺ NHẬT KÝ GIỜ TẬP TRUNG (FOCUS TIMER SESSION LOG) -->
+        <div class="analytics-card" id="timerLogCard">
+          <div class="analytics-card__header">
+            <h3 class="analytics-card__title">📊 Nhật Ký Phiên Tập Trung</h3>
+            <button type="button" id="btnClearTimerLogs" class="btn-mini-link" title="Xóa lịch sử nhật ký phiên">Xóa log</button>
+          </div>
+          <div class="timer-log-summary" id="timerLogSummary">
+            <div class="timer-log-stat">
+              <span>Hôm nay</span>
+              <strong id="timerLogTodayMins">0 phút</strong>
+            </div>
+            <div class="timer-log-stat">
+              <span>7 ngày qua</span>
+              <strong id="timerLogWeekHours">0.0h</strong>
+            </div>
+          </div>
+          <div class="timer-log-top" id="timerLogTopProject">
+            🏆 Đầu tư nhiều nhất tuần: <strong>Chưa có dữ liệu</strong>
+          </div>
+          <div class="timer-logs-list" id="timerLogsList">
+            <!-- Danh sách các phiên Focus Timer gần đây -->
           </div>
         </div>
 
@@ -268,6 +335,8 @@
         <hr class="divider" />
         <div class="backup-row">
           <button type="button" id="btnExportJson" class="btn btn--ghost">⬇ Xuất file JSON</button>
+          <button type="button" id="btnImportJson" class="btn btn--ghost">⬆ Nhập file JSON</button>
+          <input type="file" id="inputImportJsonFile" accept=".json,application/json" hidden />
           <button type="button" id="btnResetDemoData" class="btn btn--danger-ghost">↺ Khôi phục dữ liệu mẫu</button>
         </div>
       </div>
