@@ -71,11 +71,12 @@
 
 | Mục | Giá trị |
 |---|---|
-| **Phiên bản hiện tại** | `V1.0` (Hoàn thiện toàn bộ dự án `T1.1` → `T5.1`) |
-| **Task vừa hoàn thành** | `T5.1 — Đóng gói PWA (manifest.json, sw.js) & Kiểm thử Toàn diện` |
-| **Task kế tiếp** | *(Đã hoàn thành 100% lộ trình trong Plan.md)* |
-| **Tình trạng build / test** | ✅ **12/12 Test Cases PASS** (Kiểm chứng thực tế trên V8 Chromium & HTTP Server) |
-| **Cập nhật lần cuối** | `2026-11-07` |
+| **Phiên bản hiện tại** | `V2.1` (Hoàn thiện 11 tính năng quản lý nâng cao, OLED Dark, Streak Heatmap & Cảnh báo đóng băng $\ge 3$ ngày) |
+| **Task vừa hoàn thành** | `T7.4 — Dự báo Ngày Đích (ETA), Nhật ký Giờ Focus Timer & Nhập File JSON 2 Chiều` |
+| **Task kế tiếp** | Hệ thống đang vận hành hoàn thiện ở trạng thái tốt nhất |
+| **Tình trạng build / test** | ✅ **14/14 Test Cases PASS** (Kiểm chứng trên V8 Chromium Headless & HTTP Server) |
+| **Triển khai trực tuyến** | GitHub Pages: `https://73qb.github.io/glowbar-tracker/` · Firestore Cloud Sync: `Spark Plan` active |
+| **Cập nhật lần cuối** | `2026-11-08` |
 
 ## B2. Kiến thức kỹ thuật cốt lõi đang áp dụng
 
@@ -118,3 +119,13 @@
 - **Trạng thái thành phần:** Tất cả các module `M01`–`M09` hoạt động đồng bộ, tuân thủ tuyệt đối `R101`–`R104`.
 - **Kết quả kiểm thử:** **12/12 PASS** (`AC01`–`AC09`, `E01`–`E07`, `R102`–`R104`).
 - **Điểm khôi phục:** Thư mục gốc `g:\My Drive\Bar_Project` phiên bản `1.0.0`.
+
+### V2.0 — Tái Thiết Kế Positivus Neo-Brutalist & Hệ Thống Hoàn Tác · `2026-11-07`
+- **Đạt được:** Giao diện Positivus Agency Style (Lime `#b9ff66`, Slate `#191a23`, hard shadows `0px 5px 0px #191a23`), tự động tương phản màu thanh năng lượng (`#7c3aed` / `#2563eb`), hệ thống hoàn tác đa tầng `Ctrl + Z`, nút Undo trên Top-bar, nút Undo trên Toast và nút `-10%` cho từng đầu việc. Triển khai thành công lên GitHub Pages và kết nối Firestore đám mây.
+- **File thay đổi:** `index.html`, `src/styles/main.css`, `src/ui/app.js`, `src/core/calculator.js`.
+
+### V2.1 — Bộ Công Cụ Quản Lý Nâng Cao, Động Lực Thị Giác & Phân Tích Tiến Độ · `2026-11-08`
+- **Đạt được:** Sửa tại chỗ (Inline Edit) qua double click; kéo thả HTML5 `⠿` và nút `↑`/`↓`; đính kèm ghi chú nhanh và nhận diện link; ghim tối đa 3 dự án trọng tâm; ngăn lưu trữ Archive; nhân bản mẫu dự án; chuyển đổi giao diện đêm OLED Dark; chuỗi giữ lửa Streak & lưới 28 ô Heatmap; cảnh báo đóng băng ($\ge 3$ ngày); dự báo ngày hoàn thành (ETA); nhật ký phiên Focus Timer; nhập file JSON 2 chiều.
+- **File thay đổi:** `src/core/models.js`, `src/core/calculator.js`, `src/services/sync.js`, `src/ui/app.js`, `src/styles/main.css`, `index.html`, `sw.js`, `tests/calculator.test.js`.
+- **Kết quả kiểm thử:** **14/14 PASS** trên V8 Chromium Headless.
+- **Điểm khôi phục:** Commit Git `008cb5e` trên nhánh `main`.

@@ -109,3 +109,35 @@
 - [x] **T5.1 — Đóng gói PWA (`manifest.json`, `sw.js`) & Kiểm thử Toàn diện**
   - *Phục vụ:* F12, C01, C05, AC09   ·   *File tác động:* `manifest.json` (M02), `sw.js` (M02), `index.html` (M01)
   - *Ghi chú nghiệm thu:* Đã hoàn thiện `manifest.json` (`display: standalone`, biểu tượng vector `192x192` & `512x512`) và Service Worker `sw.js` cache toàn bộ tài nguyên tĩnh · Kiểm thử toàn diện 12/12 test cases đạt PASS trên V8 Chromium.
+
+## Giai đoạn 6: Tái thiết Kế Giao diện Positivus & Hệ thống Hoàn tác Đa tầng
+
+- [x] **T6.1 — Phong cách Neo-Brutalist Positivus & Tương phản Thanh Năng Lượng**
+  - *Phục vụ:* F01–F04, AC07   ·   *File tác động:* `src/styles/main.css` (M03), `src/ui/app.js` (M09)
+  - *Ghi chú nghiệm thu:* Màu Lime `#B9FF66`, Dark Slate `#191A23`, viền đen dày, hard shadow `0px 5px 0px #191A23`, phông Space Grotesk. Tự động chuyển màu thanh năng lượng sang Tím `#7C3AED` và Lam `#2563EB` tránh trùng màu nền thẻ khi mở rộng.
+
+- [x] **T6.2 — Hệ thống Hoàn tác Đa tầng (Undo / Rollback Engine)**
+  - *Phục vụ:* F10, R102   ·   *File tác động:* `src/ui/app.js` (M09), `src/core/calculator.js` (M05)
+  - *Ghi chú nghiệm thu:* Phím tắt `Ctrl + Z`, nút hoàn tác trên Top-bar, nút Undo trên Toast và nút `-10%` trên từng đầu việc nhỏ.
+
+- [x] **T6.3 — Triển khai GitHub Pages & Đồng bộ Đám mây Firebase Trực tiếp**
+  - *Phục vụ:* F11, F12   ·   *File tác động:* Kho GitHub `https://github.com/73QB/glowbar-tracker.git`
+  - *Ghi chú nghiệm thu:* Website trực tuyến qua GitHub Pages (`https://73qb.github.io/glowbar-tracker/`), kết nối cơ sở dữ liệu Firebase Firestore thời gian thực hai chiều giữa Máy tính và Điện thoại.
+
+## Giai đoạn 7: Bộ Công cụ Quản lý Nâng cao, Thị giác Động lực & Phân tích Dữ liệu
+
+- [x] **T7.1 — Sửa tại chỗ (Inline Edit), Kéo thả Sắp xếp & Ghi chú Nhanh**
+  - *Phục vụ:* Quản lý linh hoạt   ·   *File tác động:* `src/core/calculator.js`, `src/ui/app.js`, `src/styles/main.css`
+  - *Ghi chú nghiệm thu:* Double-click sửa tên dự án, quỹ giờ, tên việc, trọng số, số phút tại chỗ; kéo thả HTML5 `⠿` và nút `↑`/`↓`; đính kèm ghi chú nhanh và tự nhận diện link an toàn.
+
+- [x] **T7.2 — Ghim Trọng tâm, Ngăn Lưu trữ & Nhân bản Mẫu Dự án**
+  - *Phục vụ:* Tối ưu không gian   ·   *File tác động:* `src/core/calculator.js`, `src/ui/app.js`, `src/styles/main.css`
+  - *Ghi chú nghiệm thu:* Thanh lọc 3 tab (`Đang chạy`, `Đã ghim (tối đa 3)`, `Lưu trữ`); nhân bản cấu trúc dự án mẫu với tiến độ reset về 0%.
+
+- [x] **T7.3 — Chế độ Đêm OLED Dark, Chuỗi Giữ Lửa Heatmap & Cảnh báo Đóng băng $\ge$ 3 Ngày**
+  - *Phục vụ:* Thị giác & Động lực   ·   *File tác động:* `src/core/calculator.js`, `src/ui/app.js`, `src/styles/main.css`
+  - *Ghi chú nghiệm thu:* Toggle nút OLED Dark; tính chuỗi Streak và vẽ lưới 28 ô Heatmap 5 cấp độ; tự động gắn nhãn và viền băng giá khi dự án bị bỏ quên $\ge 3$ ngày.
+
+- [x] **T7.4 — Dự báo Ngày Đích (ETA), Nhật ký Giờ Focus Timer & Nhập File JSON 2 Chiều**
+  - *Phục vụ:* Phân tích & Dữ liệu   ·   *File tác động:* `src/core/calculator.js`, `src/ui/app.js`, `index.html`
+  - *Ghi chú nghiệm thu:* Tự động tính ngày hoàn thành dựa trên tiến độ 7 ngày; thống kê phút hôm nay, tuần và top dự án; nhập file JSON khôi phục dữ liệu trực tiếp. Bộ test tự động đạt 14/14 PASS.
