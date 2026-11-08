@@ -158,7 +158,7 @@ describe('M05 · calculator.js — Lõi tính toán 2 chế độ & Level Up', (
     assert.equal(cloned.subTasks[0].spentMinutes, 0);
   });
 
-  it('Ghim tối đa 3 dự án, Lưu trữ, Cảnh báo đóng băng (> 7 ngày) & Dự báo đích (ETA) & Streak Heatmap', () => {
+  it('Ghim tối đa 3 dự án, Lưu trữ, Cảnh báo đóng băng (>= 3 ngày) & Dự báo đích (ETA) & Streak Heatmap', () => {
     const list = [
       createProject({ id: 'p1', title: 'P1', pinned: true }),
       createProject({ id: 'p2', title: 'P2', pinned: true }),
@@ -179,15 +179,38 @@ describe('M05 · calculator.js — Lõi tính toán 2 chế độ & Level Up', (
     assert.equal(archived.pinned, false, 'Lưu trữ tự động bỏ ghim');
 
     const nowMs = Date.now();
+    const twoDaysAgo = nowMs - 2 * 86400000;
+    const threeDaysAgo = nowMs - 3 * 86400000;
     const tenDaysAgo = nowMs - 10 * 86400000;
+
+    const warmProj = createProject({
+      title: 'Dự án Mới 2 Ngày',
+      createdAt: twoDaysAgo,
+      updatedAt: twoDaysAgo,
+      lastProgressAt: twoDaysAgo,
+      subTasks: [{ title: 'Chưa xong', progressPercent: 20 }]
+    });
+    assert.equal(checkProjectFrozen(warmProj, nowMs, 3).isFrozen, false, 'Chưa đủ 3 ngày thì chưa đóng băng');
+
+    const freezeProj3Days = createProject({
+      title: 'Dự án Đủ 3 Ngày',
+      createdAt: threeDaysAgo,
+      updatedAt: threeDaysAgo,
+      lastProgressAt: threeDaysAgo,
+      subTasks: [{ title: 'Chưa xong', progressPercent: 20 }]
+    });
+    const frozen3 = checkProjectFrozen(freezeProj3Days, nowMs, 3);
+    assert.equal(frozen3.isFrozen, true, 'Đủ 3 ngày (>= 3) phải bắt đầu cảnh báo đóng băng');
+    assert.equal(frozen3.idleDays, 3);
+
     const coldProj = createProject({
-      title: 'Dự án Nguội',
+      title: 'Dự án Nguội 10 Ngày',
       createdAt: tenDaysAgo,
       updatedAt: tenDaysAgo,
       lastProgressAt: tenDaysAgo,
       subTasks: [{ title: 'Chưa xong', progressPercent: 20 }]
     });
-    const frozenStatus = checkProjectFrozen(coldProj, nowMs, 7);
+    const frozenStatus = checkProjectFrozen(coldProj, nowMs, 3);
     assert.equal(frozenStatus.isFrozen, true);
     assert.equal(frozenStatus.idleDays, 10);
 

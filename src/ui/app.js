@@ -491,8 +491,8 @@ export function renderDashboard(state = appState) {
       const isExpanded = state.expandedProjectId === proj.id;
       const isEditingProj = editingTarget?.type === 'project' && editingTarget?.projectId === proj.id;
 
-      // Cảnh báo đóng băng (> 7 ngày không có tiến độ) & Dự báo đích (ETA)
-      const frozenInfo = checkProjectFrozen(proj, nowMs, 7);
+      // Cảnh báo đóng băng (>= 3 ngày không có tiến độ) & Dự báo đích (ETA)
+      const frozenInfo = checkProjectFrozen(proj, nowMs, 3);
       const forecast = forecastProjectCompletion(proj, nowMs);
 
       const cssVarInline = Object.entries(glow.cssVars)

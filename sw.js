@@ -3,7 +3,7 @@
  * Phục vụ: F12, C01, C05, AC09
  */
 
-const CACHE_NAME = 'glowbar-pwa-cache-v2';
+const CACHE_NAME = 'glowbar-pwa-cache-v3';
 const STATIC_ASSETS = [
   './',
   './index.html',

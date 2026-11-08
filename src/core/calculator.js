@@ -511,13 +511,13 @@ export function toggleArchiveProject(project) {
 }
 
 /**
- * Kiểm tra trạng thái "Đóng băng" (Frozen Warning) nếu dự án bị bỏ quên quá 7 ngày không có tiến độ mới
+ * Kiểm tra trạng thái "Đóng băng" (Frozen Warning) nếu dự án bị bỏ quên từ 3 ngày trở lên (>= 3 ngày) không có tiến độ mới
  * @param {Object} project
  * @param {number} [nowMs]
  * @param {number} [freezeDaysThreshold]
  * @returns {{ isFrozen: boolean, idleDays: number }}
  */
-export function checkProjectFrozen(project, nowMs = Date.now(), freezeDaysThreshold = 7) {
+export function checkProjectFrozen(project, nowMs = Date.now(), freezeDaysThreshold = 3) {
   if (!project || typeof project !== 'object' || project.archived) {
     return { isFrozen: false, idleDays: 0 };
   }
