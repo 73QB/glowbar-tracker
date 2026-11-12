@@ -54,6 +54,7 @@ let cloudController = {
   disconnect: () => {}
 };
 let timerTickInterval = null;
+const BASE_DOCUMENT_TITLE = typeof document !== 'undefined' ? document.title : 'GlowBar Tracker';
 
 // Trạng thái đang sửa tại chỗ (Inline Edit): { type: 'project'|'subtask', projectId, subId? }
 let editingTarget = null;
@@ -107,8 +108,13 @@ export function undoLastAction() {
   const prevState = undoStack.pop();
   const now = Date.now();
   const activeIds = new Set((prevState.projects || []).map((p) => p.id));
+  // Nếu ảnh chụp cũ chứa phiên Focus Timer đã hết giờ → bỏ đi, tránh đồng hồ tự hoàn tất & cộng phút lần nữa
+  const restoredTimer = prevState.activeTimer && getTimerSnapshot(prevState.activeTimer, now).isCompleted
+    ? null
+    : prevState.activeTimer;
   const cleanedState = {
     ...prevState,
+    activeTimer: restoredTimer,
     deletedProjectIds: (prevState.deletedProjectIds || []).filter((id) => !activeIds.has(id)),
     projects: (prevState.projects || []).map((p) => ({ ...p, updatedAt: now }))
   };
@@ -858,6 +864,7 @@ function renderTimerDisplay() {
     if (badgeEl) badgeEl.textContent = 'Sẵn sàng';
     if (btnStartPause) btnStartPause.textContent = '▶ Bắt Đầu Tập Trung';
     ringEl?.classList.remove('timer-display--running');
+    updateDocumentTitle(null);
     return;
   }
 
@@ -874,9 +881,11 @@ function renderTimerDisplay() {
   if (barEl) barEl.style.width = `${Math.round(snapshot.progressRatio * 100)}%`;
 
   if (snapshot.isCompleted) {
-    completeActiveTimerSession(timer.durationMinutes);
+    updateDocumentTitle(null);
+    completeActiveTimerSession(timer.durationMinutes, { natural: true });
     return;
   }
+  updateDocumentTitle(snapshot, timer.status);
 
   if (timer.status === 'running') {
     if (badgeEl) badgeEl.textContent = 'Đang tập trung...';
@@ -891,16 +900,30 @@ function renderTimerDisplay() {
 
 /**
  * Hoàn thành phiên Focus Timer, ghi vào Nhật ký giờ, cập nhật Chuỗi giữ lửa & nhích thanh bar (F09, AC04)
+ * - Bấm "Hoàn tất" giữa chừng: chỉ cộng số phút THỰC TẾ đã trôi qua (không cộng nguyên thời lượng phiên).
+ * - Hết giờ tự nhiên: cộng đủ thời lượng phiên và phát chuông / thông báo.
+ * - Mã nhật ký cố định theo phiên để khi 2 thiết bị cùng hoàn tất 1 phiên, đồng bộ không bị cộng đôi.
  * @param {number} [overrideMinutes]
+ * @param {{ natural?: boolean }} [options]
  */
-function completeActiveTimerSession(overrideMinutes) {
+function completeActiveTimerSession(overrideMinutes, { natural = false } = {}) {
   const timer = appState.activeTimer;
   const selectEl = document.getElementById('timerSubTaskSelect');
   const customInput = document.getElementById('timerCustomMinutes');
+  const nowMs = Date.now();
 
   let targetProjectId = timer?.projectId;
   let targetSubTaskId = timer?.subTaskId;
-  const minutesToCredit = Math.max(1, Number(overrideMinutes ?? timer?.durationMinutes ?? customInput?.value ?? 25));
+
+  let rawMinutes;
+  if (overrideMinutes !== undefined) {
+    rawMinutes = Number(overrideMinutes);
+  } else if (timer) {
+    rawMinutes = getTimerSnapshot(timer, nowMs).elapsedMinutes;
+  } else {
+    rawMinutes = Number(customInput?.value) || 25;
+  }
+  const minutesToCredit = Math.max(1, Math.round((Number(rawMinutes) || 0) * 10) / 10);
 
   if ((!targetProjectId || !targetSubTaskId) && selectEl?.value) {
     const [pId, sId] = selectEl.value.split('::');
@@ -913,9 +936,15 @@ function completeActiveTimerSession(overrideMinutes) {
     return;
   }
 
-  const nowMs = Date.now();
   const targetProj = appState.projects.find((p) => p.id === targetProjectId);
   const targetSub = targetProj?.subTasks.find((s) => s.id === targetSubTaskId);
+
+  // Đầu việc đã bị xóa trong lúc đang bấm giờ → hủy phiên, không ghi nhận ảo
+  if (!targetSub) {
+    commitState({ ...appState, activeTimer: null }, { recordHistory: false });
+    showToast('⚠ Đầu việc đang bấm giờ không còn tồn tại, đã hủy phiên.');
+    return;
+  }
 
   const nextProjects = appState.projects.map((proj) => {
     if (proj.id !== targetProjectId) return proj;
@@ -923,7 +952,7 @@ function completeActiveTimerSession(overrideMinutes) {
   });
 
   const newLogEntry = {
-    id: generateId('tlog'),
+    id: timer ? `tlog_${timer.startedAtMs}_${timer.subTaskId}` : generateId('tlog'),
     projectId: targetProjectId,
     projectTitle: targetProj?.title || 'Dự án',
     subTaskId: targetSubTaskId,
@@ -933,7 +962,10 @@ function completeActiveTimerSession(overrideMinutes) {
   };
 
   const nextActivityLog = recordDailyActivity(appState.activityLog, minutesToCredit, nowMs);
-  const nextTimerLogs = [newLogEntry, ...(appState.timerLogs || [])].slice(0, 150);
+  const nextTimerLogs = [
+    newLogEntry,
+    ...(appState.timerLogs || []).filter((l) => l.id !== newLogEntry.id)
+  ].slice(0, 150);
 
   commitState({
     ...appState,
@@ -944,7 +976,68 @@ function completeActiveTimerSession(overrideMinutes) {
     projects: nextProjects
   });
 
+  if (natural) {
+    notifyTimerFinished(targetSub.title, minutesToCredit);
+  }
   showToast(`⚡ Đã cộng +${minutesToCredit} phút vào Nhật ký giờ & Chuỗi giữ lửa!`, { showUndo: true });
+}
+
+/**
+ * Báo hiệu kết thúc phiên tập trung: chuông ngắn (Web Audio), rung (điện thoại) và thông báo hệ thống
+ * Hoạt động cả khi tab đang ở nền nếu người dùng đã cấp quyền Thông báo.
+ * @param {string} subTitle
+ * @param {number} minutes
+ */
+function notifyTimerFinished(subTitle, minutes) {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      const ctx = new AudioCtx();
+      [0, 0.28, 0.56].forEach((offset) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + offset);
+        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + offset + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + offset + 0.22);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(ctx.currentTime + offset);
+        osc.stop(ctx.currentTime + offset + 0.24);
+      });
+      setTimeout(() => ctx.close?.(), 1200);
+    }
+  } catch {
+    // Trình duyệt chặn âm thanh khi chưa có tương tác — bỏ qua an toàn
+  }
+
+  navigator.vibrate?.([200, 100, 200]);
+
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    try {
+      new Notification('⚡ Hết phiên tập trung!', {
+        body: `${subTitle} · +${minutes} phút đã được cộng vào thanh bar.`,
+        tag: 'glowbar-timer'
+      });
+    } catch {
+      // Một số trình duyệt di động chỉ cho phép thông báo qua Service Worker — bỏ qua
+    }
+  }
+}
+
+/**
+ * Cập nhật tiêu đề tab trình duyệt theo đồng hồ đếm ngược để theo dõi khi đang ở tab khác
+ * @param {Object|null} snapshot
+ * @param {string} [status]
+ */
+function updateDocumentTitle(snapshot, status) {
+  if (typeof document === 'undefined') return;
+  if (!snapshot) {
+    document.title = BASE_DOCUMENT_TITLE;
+    return;
+  }
+  const icon = status === 'paused' ? '⏸' : '⏱';
+  document.title = `${icon} ${snapshot.formattedTime} · GlowBar`;
 }
 
 /**
@@ -1458,6 +1551,10 @@ function bindEvents() {
       });
       commitState({ ...appState, activeTimer: timerState }, { recordHistory: false });
       showToast(`▶ Bắt đầu phiên tập trung ${durationMinutes} phút!`);
+      // Xin quyền thông báo hệ thống (chỉ hỏi 1 lần, trong lúc có thao tác của người dùng)
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
     } else if (current.status === 'running') {
       const paused = pauseTimer(current, Date.now());
       commitState({ ...appState, activeTimer: paused }, { recordHistory: false });
@@ -1535,6 +1632,10 @@ function bindEvents() {
     if (remoteData === null) {
       await cloudController.pushState(appState);
       showToast('☁️ Đã đẩy dữ liệu hiện tại lên kênh đám mây!');
+    } else if (remoteData === undefined) {
+      showToast('⚠ Không kết nối được đám mây. Kiểm tra mạng rồi thử lại.');
+    } else {
+      showToast('✅ Đồng bộ xong — dữ liệu các thiết bị đã khớp.');
     }
     document.getElementById('modalCloudSync')?.close?.();
   });
@@ -1607,6 +1708,22 @@ function updateSyncStatusUI({ state, message }) {
   if (txt) txt.textContent = message;
 }
 
+/**
+ * Tạo "dấu vân tay" gọn của phần dữ liệu đồng bộ để biết bản hợp nhất có thực sự thay đổi hay không.
+ * Nếu không đổi → bỏ qua render lại (tránh mất chữ người dùng đang gõ dở & tránh toast thừa).
+ * @param {Object} state
+ * @returns {string}
+ */
+function computeStateSignature(state) {
+  return JSON.stringify([
+    (state?.projects || []).map((p) => [p.id, p.updatedAt, p.pinned, p.archived]),
+    state?.deletedProjectIds || [],
+    (state?.timerLogs || []).map((l) => l.id),
+    state?.activityLog || {},
+    state?.activeTimer ? [state.activeTimer.startedAtMs, state.activeTimer.status, state.activeTimer.endTimeMs] : null
+  ]);
+}
+
 async function connectCloudIfConfigured(cfg = loadCloudConfig()) {
   if (!cfg || !cfg.apiKey || !cfg.projectId || !cfg.syncKey) {
     updateSyncStatusUI({ state: 'offline', message: 'Offline · LocalStorage' });
@@ -1624,13 +1741,16 @@ async function connectCloudIfConfigured(cfg = loadCloudConfig()) {
     (remoteState) => {
       const merged = mergeRemoteState(appState, remoteState);
       const needPushBack = hasUnpushedLocalChanges(remoteState, merged);
-      appState = saveLocalState(merged);
-      applyThemeUI(appState.theme);
-      renderDashboard(appState);
+      const changed = computeStateSignature(merged) !== computeStateSignature(appState);
+      if (changed) {
+        appState = saveLocalState(merged);
+        applyThemeUI(appState.theme);
+        renderDashboard(appState);
+        showToast('☁️ Đã đồng bộ dữ liệu mới từ thiết bị khác!');
+      }
       if (needPushBack) {
         cloudController.pushState(appState);
       }
-      showToast('☁️ Đã đồng bộ dữ liệu thời gian thực từ đám mây!');
     },
     (status) => updateSyncStatusUI(status)
   );

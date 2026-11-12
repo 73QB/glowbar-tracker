@@ -388,8 +388,10 @@ export function mergeRemoteState(localState, remoteState) {
     theme: localNorm.theme || remoteNorm.theme || 'positivus',
     filterView: localNorm.filterView || 'active',
     expandedProjectId: localNorm.expandedProjectId ?? remoteNorm.expandedProjectId,
+    // Thiết bị vừa thao tác gần nhất quyết định trạng thái Timer (kể cả null = đã hoàn tất/hủy),
+    // tránh trường hợp phiên đã kết thúc trên máy A bị "hồi sinh" trên máy B.
     activeTimer: isRemoteNewerGlobal
-      ? (remoteNorm.activeTimer ?? localNorm.activeTimer)
+      ? (remoteNorm.activeTimer ?? null)
       : localNorm.activeTimer,
     deletedProjectIds: Array.from(deletedSet).slice(-200),
     activityLog: mergedActivityLog,
@@ -499,7 +501,8 @@ export async function initCloudSync(firebaseConfig, syncKey, onRemoteUpdate, onS
     const docRef = firestoreModule.doc(db, 'glowbar_workspaces', cleanKey);
 
     let isDisposed = false;
-    let lastPushedWriteId = null;
+    // Ghi nhớ các mã ghi gần đây của chính thiết bị này để bỏ qua mọi "tiếng vọng" (echo) từ Firestore
+    const recentOwnWriteIds = [];
 
     async function pullNow() {
       if (isDisposed) return null;
@@ -554,7 +557,7 @@ export async function initCloudSync(firebaseConfig, syncKey, onRemoteUpdate, onS
           const data = snapshot.data();
           if (!data) return;
           // Chỉ bỏ qua nếu đây đúng là tiếng vọng (echo) từ lần ghi vừa rồi của chính thiết bị này
-          if (data.lastWriteId && data.lastWriteId === lastPushedWriteId) {
+          if (data.lastWriteId && recentOwnWriteIds.includes(data.lastWriteId)) {
             return;
           }
           onRemoteUpdate?.(normalizeAppState(data), { source: 'snapshot' });
@@ -576,7 +579,8 @@ export async function initCloudSync(firebaseConfig, syncKey, onRemoteUpdate, onS
         try {
           const payload = normalizeAppState(state);
           const writeId = generateId('sync');
-          lastPushedWriteId = writeId;
+          recentOwnWriteIds.push(writeId);
+          if (recentOwnWriteIds.length > 30) recentOwnWriteIds.shift();
           await firestoreModule.setDoc(
             docRef,
             JSON.parse(JSON.stringify({ ...payload, lastWriteId: writeId }))

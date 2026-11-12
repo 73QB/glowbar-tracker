@@ -71,10 +71,10 @@
 
 | Mục | Giá trị |
 |---|---|
-| **Phiên bản hiện tại** | `V2.2` (Đồng bộ đa thiết bị Pull-Before-Push & Union Merge + Tối ưu UX nút `+10%`/`-10%` và Toast đơn) |
-| **Task vừa hoàn thành** | `Khắc phục triệt để đồng bộ 2 chiều PC ↔ Điện thoại khi mở web lệch thời điểm` |
+| **Phiên bản hiện tại** | `V2.3` (Rà soát toàn dự án: sửa 6 lỗi Focus Timer/đồng bộ + chuông & thông báo hết phiên, đếm ngược trên tiêu đề tab) |
+| **Task vừa hoàn thành** | `T8.1 — Rà soát & gia cố Focus Timer, đồng bộ đa thiết bị; thêm báo hiệu hết phiên` |
 | **Task kế tiếp** | Hệ thống đang vận hành hoàn thiện ở trạng thái tốt nhất |
-| **Tình trạng build / test** | ✅ **15/15 Test Cases PASS** (Kiểm chứng trên V8 Chromium Headless & HTTP Server) |
+| **Tình trạng build / test** | ✅ **17/17 Test Cases PASS** (V8 Chromium Headless) + smoke test `index.html` 0 lỗi JS |
 | **Triển khai trực tuyến** | GitHub Pages: `https://73qb.github.io/glowbar-tracker/` · Firestore Cloud Sync: `Spark Plan` active |
 | **Cập nhật lần cuối** | `2026-11-12` |
 
@@ -113,6 +113,8 @@
 - **L01 — Môi trường chạy ES Modules:** Dùng `tests/test-harness.js` kết hợp `tests/runner.html` và `tests/run-all.js` để bộ kiểm thử chạy được trên cả trình duyệt thực tế (Chromium V8) lẫn Node.js (`node --test` / `node tests/run-all.js`) mà không phụ thuộc thư viện ngoài.
 - **L02 — Quyền truy cập ổ đĩa ảo Google Drive (`G:\My Drive`) trong Sandbox:** Khi chạy server cục bộ `python -m http.server` trên thư mục Google Drive của Windows, cần chạy bên ngoài AppContainer sandbox để socket loopback và quyền đọc file hoạt động trơn tru.
 - **L03 — Nguyên tắc Pull-Before-Push & Union Merge khi đồng bộ nhiều thiết bị (`sync.js`):** Khi một thiết bị (như điện thoại) mở web muộn hơn sau khi máy tính đã thêm dự án, tuyệt đối không gọi `pushState(appState)` trước khi kéo dữ liệu từ Firestore (`pullNow()`), đồng thời `mergeRemoteState` phải hợp nhất (Union) danh sách `projects` từ cả hai phía kèm `deletedProjectIds` (Tombstones) và dùng `lastWriteId` thay vì so sánh đồng hồ hệ thống giữa các máy.
+- **L04 — Bẫy Focus Timer khi có Undo & nhiều thiết bị:** (1) Ảnh chụp Undo có thể chứa phiên timer đã hết giờ → khi khôi phục phải bỏ `activeTimer` đó, nếu không đồng hồ tự hoàn tất và cộng phút lần nữa. (2) `activeTimer = null` là dữ liệu hợp lệ khi merge — không dùng `??` để rơi về timer cục bộ. (3) Mã nhật ký phiên phải cố định theo phiên (`tlog_<startedAtMs>_<subTaskId>`) để 2 máy cùng hoàn tất không cộng đôi. (4) Nút "Hoàn tất" giữa chừng chỉ cộng số phút thực tế đã trôi qua.
+- **L05 — Không render lại khi dữ liệu đám mây không đổi:** `onRemoteUpdate` so sánh `computeStateSignature` trước/sau merge; chỉ render & hiện toast khi có thay đổi thật, tránh xóa chữ người dùng đang gõ dở trong form sửa tại chỗ.
 
 ## B5. Lịch sử phiên bản & Mốc khôi phục (V..)
 
@@ -140,3 +142,10 @@
 - **Đạt được:** Cố định vị trí nút `+10%` bằng cách đưa `-10%` ra sau nút Hoàn thành; loại bỏ cộng dồn popup Toast (chỉ hiển thị duy nhất thông báo mới nhất); sửa lỗi mất đồng bộ khi mở web trên điện thoại muộn hơn máy tính bằng cơ chế Pull-Before-Push (`pullNow()` dùng `getDocFromServer`), hợp nhất Union danh sách `projects` kèm `deletedProjectIds`, tự động đồng bộ lại khi mở lại tab (`visibilitychange` / `online`), và nâng cấp `sw.js` lên `v5` (Network-First + không can thiệp kết nối ngoại vi Firestore).
 - **File thay đổi:** `src/services/sync.js`, `src/ui/app.js`, `index.html`, `sw.js`, `tests/sync.test.js`.
 - **Kết quả kiểm thử:** **15/15 PASS** trên V8 Chromium Headless.
+- **Điểm khôi phục:** Commit Git `dd4c8f4` (+ `f552f4b` tinh chỉnh ETA) trên nhánh `main`.
+
+### V2.3 — Rà Soát Toàn Dự Án: Gia Cố Focus Timer & Đồng Bộ, Báo Hiệu Hết Phiên · `2026-11-12` · (sau task T8.1)
+- **Sửa lỗi:** (1) Nút "Hoàn tất & Nhích Bar" giữa chừng cộng nguyên 25 phút → nay chỉ cộng số phút thực tế. (2) Undo sau khi hết phiên làm đồng hồ tự hoàn tất & cộng phút lần 2. (3) Phiên đã kết thúc trên máy A bị hồi sinh trên máy B khi merge. (4) Hai máy cùng hoàn tất 1 phiên bị cộng đôi nhật ký. (5) Đầu việc bị xóa khi đang bấm giờ vẫn ghi nhận phút ảo. (6) Mỗi lần mở lại tab đều render lại + hiện toast đồng bộ dù không có gì đổi (có thể xóa chữ đang gõ); nhận diện echo Firestore chỉ nhớ 1 mã ghi.
+- **Tính năng mới:** Chuông 3 tiếng (Web Audio) + rung + thông báo hệ thống khi hết phiên; đồng hồ đếm ngược trên tiêu đề tab (`⏱ 12:34 · GlowBar`); nút "🔄 Đồng bộ ngay" luôn có phản hồi (đã khớp / mất mạng / đã đẩy lên).
+- **File thay đổi:** `src/ui/app.js`, `src/services/sync.js`, `sw.js` (`v6`), `tests/sync.test.js`.
+- **Kết quả kiểm thử:** **17/17 PASS** + smoke test `index.html` (2 thẻ render, 0 lỗi JS).

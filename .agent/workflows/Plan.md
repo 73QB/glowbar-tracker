@@ -141,3 +141,9 @@
 - [x] **T7.4 — Dự báo Ngày Đích (ETA), Nhật ký Giờ Focus Timer & Nhập File JSON 2 Chiều**
   - *Phục vụ:* Phân tích & Dữ liệu   ·   *File tác động:* `src/core/calculator.js`, `src/ui/app.js`, `index.html`
   - *Ghi chú nghiệm thu:* Tự động tính ngày hoàn thành dựa trên tiến độ 7 ngày; thống kê phút hôm nay, tuần và top dự án; nhập file JSON khôi phục dữ liệu trực tiếp. Bộ test tự động đạt 14/14 PASS.
+
+## Giai đoạn 8: Bảo trì, Gia cố Đồng bộ & Focus Timer
+
+- [x] **T8.1 — Rà soát toàn dự án: gia cố Focus Timer, đồng bộ đa thiết bị & báo hiệu hết phiên**
+  - *Phục vụ:* F08, F09, F11, E06, E07, AC04, AC08   ·   *File tác động:* `src/ui/app.js` (M09), `src/services/sync.js` (M08), `sw.js` (M02), `tests/sync.test.js`
+  - *Ghi chú nghiệm thu:* Sửa 6 lỗi (cộng phút sai khi Hoàn tất giữa chừng, Undo cộng đôi, timer hồi sinh khi merge, cộng đôi nhật ký đa thiết bị, ghi phút cho việc đã xóa, render/toast thừa khi đồng bộ) · Thêm chuông + rung + thông báo hết phiên, đếm ngược trên tiêu đề tab · Test: 17/17 PASS (thêm 2 test E06/E07).
