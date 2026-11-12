@@ -85,23 +85,28 @@
 - **Kiến trúc Pure Core (`D01`):** Toàn bộ các module trong `src/core/` (`models.js`, `calculator.js`, `glow.js`, `timer.js`) là hàm thuần khiết bất biến (`R102`), kiểm thử tự động qua `tests/runner.html` và `tests/run-all.js`.
 - **Công thức 2 chế độ tính toán (`F05`, `F06`, `D02`):**
   - *Fixed Mode:* Trung bình có trọng số $\frac{\sum w_i \cdot p_i}{\sum w_i}$, tự động trả về `0%` khi danh sách rỗng hoặc tổng trọng số $\le 0$ (`E01`).
-  - *Time Pool Mode:* Tính theo $\min(100, \frac{\sum t_{\text{spent}}}{T_{\text{target}} \times 60} \times 100)$, đảm bảo thêm việc mới không làm tụt phần trăm (`C02`). Khi bấm nút cộng nhanh (`+10%`, `+25%`, `100%`), chỉ quy đổi phần trăm thực tăng thêm (`actualDeltaPercent`) sang số phút để không cộng dư (`E03`).
+  - *Time Pool Mode:* Tính theo $\min(100, \frac{\sum t_{\text{spent}}}{T_{\text{target}} \times 60} \times 100)$, đảm bảo thêm việc mới không làm tụt phần trăm (`C02`). Khi bấm nút cộng nhanh (`+10%`, `+25%`, `100%`) hoặc trừ (`-10%`), chỉ quy đổi phần trăm thực thay đổi (`actualDeltaPercent`) sang số phút để không cộng/trừ dư (`E03`).
 - **Dynamic Glow CSS Variables (`D03`, `F02`):** `computeGlowStyle` sinh các biến `--bar-percent`, `--glow-blur`, `--glow-spread`, `--glow-opacity`, `--milestone-tier` (`0`, `25`, `50`, `75`, `100`) gắn trực tiếp lên `.master-card`.
 - **Chống trôi giờ Focus Timer (`C03`, `E06`):** `timer.js` tính thời gian còn lại bằng `endTimeMs - nowMs` và lưu `remainingMsWhenPaused` khi tạm dừng.
+- **Dự báo Ngày Đích (ETA) 7 ngày (`forecastProjectCompletion`):** Lấy tổng phút tích lũy (hoặc tổng % tăng thêm) trong 7 ngày gần nhất chia cho số ngày chạy để ra tốc độ trung bình/ngày, từ đó tính số ngày còn lại đến 100%. Khi dự án ở 0% hoặc bị trừ lùi tiến độ, tốc độ được trừ khử chính xác để không sinh ngày ảo.
+- **Cảnh báo Đóng Băng $\ge 3$ ngày (`checkProjectFrozen`):** Tự động phát hiện các dự án chưa đạt 100% và không có tiến độ mới (`lastProgressAt`) từ 3 ngày trở lên để gắn nhãn nhắc nhở viền nguội.
+- **Chuỗi Giữ Lửa (Streak) & Heatmap 28 ngày (`calculateStreakAndHeatmap`):** Theo dõi `activityLog` theo từng ngày (`YYYY-MM-DD`), tính chuỗi liên tiếp lùi từ hôm nay/hôm qua và vẽ lưới 28 ô mật độ năng lượng.
+- **Hệ Thống Hoàn Tác Đa Tầng (Undo Stack):** Ngăn xếp lưu ảnh chụp trạng thái (`MAX_UNDO_DEPTH = 30`), hỗ trợ phím tắt `Ctrl + Z`, nút Undo Top-bar và nút Hoàn tác ngay trên Toast.
+- **Đồng Bộ Đa Thiết Bị Pull-Before-Push & Union Merge (`M08`):** Luôn kéo dữ liệu đám mây về trước khi cho phép đẩy lên, hợp nhất danh sách dự án cả 2 máy (Union) và dùng mảng `deletedProjectIds` (Tombstones) để xóa dứt điểm dự án trên mọi thiết bị.
 
 ## B3. Thành phần đã hoàn thành
 
 | Module / Hàm | Chức năng | File | Trạng thái | Ghi chú |
 |---|---|---|---|---|
-| `M01` (`index.html`) | Giao diện chính & Modals | `index.html` | ✅ | Hỗ trợ Desktop 2 cột & Mobile 1 cột |
-| `M02` (`manifest.json`, `sw.js`) | Đóng gói PWA & Offline Cache | `manifest.json`, `sw.js` | ✅ | Chuẩn `standalone`, cache tài nguyên tĩnh |
-| `M03` (`main.css`) | Dark Glow UI, Accordion, Responsive | `src/styles/main.css` | ✅ | Hiệu ứng `energyPulse` ở mốc 75% & 100% |
-| `M04` (`models.js`) | `createProject`, `createSubTask`, `validateProject` | `src/core/models.js` | ✅ | Đạt 3/3 test (`IN01`, `IN02`, `E01`, `E02`) |
-| `M05` (`calculator.js`) | `calculateMasterProgress`, `applyQuickAction`, `applyTimerMinutes`, `levelUpProject` | `src/core/calculator.js` | ✅ | Đạt 4/4 test (`AC01`–`AC03`, `AC05`) |
+| `M01` (`index.html`) | Giao diện Neo-Brutalist Positivus & OLED Dark, 3 Dialog Modals, Bộ lọc 3 tab, Heatmap | `index.html` | ✅ | Hỗ trợ Desktop 2 cột & Mobile 1 cột |
+| `M02` (`manifest.json`, `sw.js`) | Đóng gói PWA, Offline Cache `v5` (Network-First) | `manifest.json`, `sw.js` | ✅ | Chuẩn `standalone`, không chặn luồng Firestore |
+| `M03` (`main.css`) | Dark Glow UI, Accordion, OLED Dark Theme, Animation Milestone | `src/styles/main.css` | ✅ | Hiệu ứng `energyPulse` ở mốc 75% & 100% |
+| `M04` (`models.js`) | `createProject`, `createSubTask`, `validateProject`, `formatDateKey` | `src/core/models.js` | ✅ | Đạt 3/3 test (`IN01`, `IN02`, `E01`, `E02`) |
+| `M05` (`calculator.js`) | Tính toán Fixed & Time Pool, Nút cộng/trừ nhanh, Level Up, Sửa tại chỗ, Kéo thả, Ghim, Lưu trữ, Nhân bản, Cảnh báo đóng băng $\ge 3$ ngày, Dự báo ETA, Streak & Heatmap | `src/core/calculator.js` | ✅ | Đạt 6/6 test (`AC01`–`AC03`, `AC05`, tính bất biến `R102`) |
 | `M06` (`glow.js`) | `computeGlowStyle`, `resolveMilestoneTier` | `src/core/glow.js` | ✅ | Đạt 1/1 test (`AC06`) |
 | `M07` (`timer.js`) | `createTimerState`, `getTimerSnapshot`, `pauseTimer`, `resumeTimer` | `src/core/timer.js` | ✅ | Đạt 1/1 test (`AC04`, `E06`) |
-| `M08` (`sync.js`) | `saveLocalState`, `loadLocalState`, `mergeRemoteState`, `initCloudSync` | `src/services/sync.js` | ✅ | Đạt 2/2 test (`AC08`, `C05`, `E07`) |
-| `M09` (`app.js`) | `initApp`, `renderDashboard`, `toggleAccordion`, `escapeHtml` | `src/ui/app.js` | ✅ | Đạt test chống XSS (`R104`, `AC07`) |
+| `M08` (`sync.js`) | `saveLocalState`, `loadLocalState`, `mergeRemoteState` (Union + Tombstones), `initCloudSync`, `pullNow` | `src/services/sync.js` | ✅ | Đạt 3/3 test (`AC08`, `C05`, `E07`, Union merge) |
+| `M09` (`app.js`) | Điều phối DOM, Sự kiện Accordion, Toast đơn không cộng dồn, Undo `Ctrl + Z`, XSS Sanitizer | `src/ui/app.js` | ✅ | Đạt test chống XSS (`R104`, `AC07`) |
 
 ## B4. Lưu ý quan trọng & Bẫy đã gặp (L..)
 
