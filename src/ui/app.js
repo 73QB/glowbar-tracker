@@ -38,6 +38,7 @@ import {
   loadLocalState,
   saveLocalState,
   mergeRemoteState,
+  hasUnpushedLocalChanges,
   initCloudSync,
   loadCloudConfig,
   saveCloudConfig,
@@ -49,6 +50,7 @@ import {
 let appState = loadLocalState();
 let cloudController = {
   pushState: async () => false,
+  pullNow: async () => null,
   disconnect: () => {}
 };
 let timerTickInterval = null;
@@ -103,9 +105,16 @@ export function undoLastAction() {
     return;
   }
   const prevState = undoStack.pop();
+  const now = Date.now();
+  const activeIds = new Set((prevState.projects || []).map((p) => p.id));
+  const cleanedState = {
+    ...prevState,
+    deletedProjectIds: (prevState.deletedProjectIds || []).filter((id) => !activeIds.has(id)),
+    projects: (prevState.projects || []).map((p) => ({ ...p, updatedAt: now }))
+  };
   editingTarget = null;
   updateUndoButtonUI();
-  commitState(prevState, { pushCloud: true, recordHistory: false });
+  commitState(cleanedState, { pushCloud: true, recordHistory: false, touchTimestamp: true });
   showToast('↩ Đã hoàn tác thao tác vừa rồi thành công!');
 }
 
@@ -211,15 +220,19 @@ function applyThemeUI(theme) {
 /**
  * Lưu trạng thái mới vào LocalStorage, đồng bộ lên Firestore và cập nhật giao diện
  * @param {Object} nextState
- * @param {{ pushCloud?: boolean, recordHistory?: boolean }} [options]
+ * @param {{ pushCloud?: boolean, recordHistory?: boolean, touchTimestamp?: boolean }} [options]
  */
-function commitState(nextState, { pushCloud = true, recordHistory = true } = {}) {
+function commitState(nextState, { pushCloud = true, recordHistory = true, touchTimestamp = true } = {}) {
   if (recordHistory && appState) {
     pushUndoSnapshot(appState);
   }
+  const nextUpdatedAt = touchTimestamp
+    ? Date.now()
+    : (Number(nextState?.updatedAt) || Number(appState?.updatedAt) || 1000);
+
   appState = saveLocalState({
     ...nextState,
-    updatedAt: Date.now()
+    updatedAt: nextUpdatedAt
   });
   applyThemeUI(appState.theme);
   renderDashboard(appState);
@@ -230,6 +243,7 @@ function commitState(nextState, { pushCloud = true, recordHistory = true } = {})
 
 /**
  * Đóng / mở Accordion của một thanh dự án Master-bar (F03, M09)
+ * Không tăng updatedAt vì đây chỉ là thao tác xem giao diện cục bộ.
  * @param {string} projectId
  */
 export function toggleAccordion(projectId) {
@@ -239,7 +253,7 @@ export function toggleAccordion(projectId) {
       ...appState,
       expandedProjectId: nextExpanded
     },
-    { pushCloud: false, recordHistory: false }
+    { pushCloud: false, recordHistory: false, touchTimestamp: false }
   );
 }
 
@@ -956,7 +970,10 @@ function bindEvents() {
     if (!tabBtn) return;
     const filterView = tabBtn.dataset.filter;
     editingTarget = null;
-    commitState({ ...appState, filterView }, { pushCloud: false, recordHistory: false });
+    commitState(
+      { ...appState, filterView },
+      { pushCloud: false, recordHistory: false, touchTimestamp: false }
+    );
   });
 
   // Nút xóa lịch sử Nhật ký giờ
@@ -1135,8 +1152,10 @@ function bindEvents() {
       showToast('🗑 Đã xóa đầu việc nhỏ.', { showUndo: true });
     } else if (action === 'delete-project') {
       const nextProjects = appState.projects.filter((p) => p.id !== projectId);
+      const nextDeletedIds = Array.from(new Set([...(appState.deletedProjectIds || []), projectId]));
       commitState({
         ...appState,
+        deletedProjectIds: nextDeletedIds,
         expandedProjectId: nextProjects[0]?.id || null,
         projects: nextProjects
       });
@@ -1504,6 +1523,33 @@ function bindEvents() {
     showToast('Đã chuyển sang chế độ lưu trữ cục bộ Offline.');
   });
 
+  // Nút Kéo & Hợp nhất dữ liệu đám mây thủ công ngay lập tức
+  document.getElementById('btnForceSyncNow')?.addEventListener('click', async () => {
+    const cfg = loadCloudConfig();
+    if (!cfg || !cfg.apiKey || !cfg.projectId || !cfg.syncKey) {
+      showToast('⚠ Vui lòng nhập Sync Key & thông tin Firebase trước khi đồng bộ!');
+      return;
+    }
+    showToast('🔄 Đang kéo dữ liệu mới nhất từ đám mây...');
+    const remoteData = await cloudController.pullNow();
+    if (remoteData === null) {
+      await cloudController.pushState(appState);
+      showToast('☁️ Đã đẩy dữ liệu hiện tại lên kênh đám mây!');
+    }
+    document.getElementById('modalCloudSync')?.close?.();
+  });
+
+  // Tự động kéo dữ liệu mới từ Firestore khi người dùng mở lại tab trên điện thoại / máy tính hoặc khi có mạng lại
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      cloudController.pullNow?.();
+    }
+  });
+
+  window.addEventListener('online', () => {
+    cloudController.pullNow?.();
+  });
+
   // Xuất file JSON sao lưu
   document.getElementById('btnExportJson')?.addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(appState, null, 2)], { type: 'application/json' });
@@ -1577,15 +1623,24 @@ async function connectCloudIfConfigured(cfg = loadCloudConfig()) {
     cfg.syncKey,
     (remoteState) => {
       const merged = mergeRemoteState(appState, remoteState);
+      const needPushBack = hasUnpushedLocalChanges(remoteState, merged);
       appState = saveLocalState(merged);
       applyThemeUI(appState.theme);
       renderDashboard(appState);
+      if (needPushBack) {
+        cloudController.pushState(appState);
+      }
       showToast('☁️ Đã đồng bộ dữ liệu thời gian thực từ đám mây!');
     },
     (status) => updateSyncStatusUI(status)
   );
 
-  await cloudController.pushState(appState);
+  // Pull-Before-Push: Kéo dữ liệu trên Firestore về hợp nhất trước, tuyệt đối không ghi đè mù khi mới mở web
+  const initialRemote = await cloudController.pullNow();
+  if (initialRemote === null) {
+    // Chỉ khi phòng đồng bộ trên đám mây hoàn toàn trống (mới tạo lần đầu) thì mới đẩy trạng thái cục bộ lên
+    await cloudController.pushState(appState);
+  }
 }
 
 /**

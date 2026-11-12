@@ -7,25 +7,29 @@ import { createProject, formatDateKey, generateId } from '../core/models.js';
 
 export const STORAGE_KEY = 'glowbar_tracker_state_v1';
 export const CLOUD_CONFIG_KEY = 'glowbar_cloud_config_v1';
+export const SEED_PROJECT_IDS = ['proj_seed_fixed', 'proj_seed_pool'];
 
 /**
  * Tạo dữ liệu mẫu mặc định khi người dùng mở ứng dụng lần đầu
  * Gồm 1 dự án chế độ Lộ trình cố định (Fixed) và 1 dự án chế độ Quỹ thời gian (Time Pool)
+ * Dùng mốc updatedAt nền (1000) để không bao giờ ghi đè lên dữ liệu thật từ đám mây khi thiết bị mới kết nối.
  * @returns {Object} AppState
  */
 export function createDefaultSeedState() {
   const now = Date.now();
+  const seedTimestamp = 1000;
   const todayKey = formatDateKey(now);
   const yesterdayKey = formatDateKey(now - 86400000);
   const twoDaysAgoKey = formatDateKey(now - 2 * 86400000);
 
   return {
     version: 1,
-    updatedAt: now,
+    updatedAt: seedTimestamp,
     theme: 'positivus',
     filterView: 'active',
     expandedProjectId: 'proj_seed_fixed',
     activeTimer: null,
+    deletedProjectIds: [],
     activityLog: {
       [twoDaysAgoKey]: { count: 2, minutes: 45 },
       [yesterdayKey]: { count: 3, minutes: 60 },
@@ -62,7 +66,7 @@ export function createDefaultSeedState() {
         pinned: true,
         archived: false,
         createdAt: now - 3 * 86400000,
-        updatedAt: now,
+        updatedAt: seedTimestamp,
         lastProgressAt: now,
         progressHistory: [
           { date: yesterdayKey, deltaMinutes: 60, deltaPercent: 25 },
@@ -108,7 +112,7 @@ export function createDefaultSeedState() {
         pinned: false,
         archived: false,
         createdAt: now - 4 * 86400000,
-        updatedAt: now,
+        updatedAt: seedTimestamp,
         lastProgressAt: now,
         progressHistory: [
           { date: twoDaysAgoKey, deltaMinutes: 90, deltaPercent: 15 },
@@ -192,6 +196,12 @@ export function normalizeAppState(rawState) {
         }))
     : [];
 
+  const deletedProjectIds = Array.isArray(rawState.deletedProjectIds)
+    ? Array.from(
+        new Set(rawState.deletedProjectIds.filter((id) => typeof id === 'string' && id.trim()))
+      ).slice(-200)
+    : [];
+
   return {
     version: 1,
     updatedAt: Number.isFinite(Number(rawState.updatedAt)) ? Number(rawState.updatedAt) : Date.now(),
@@ -201,6 +211,7 @@ export function normalizeAppState(rawState) {
     activeTimer: rawState.activeTimer && typeof rawState.activeTimer === 'object'
       ? { ...rawState.activeTimer }
       : null,
+    deletedProjectIds,
     activityLog,
     timerLogs,
     projects: rawState.projects.map((p) => createProject(p))
@@ -275,8 +286,10 @@ export function loadLocalState(storage = globalThis.localStorage) {
 }
 
 /**
- * Hợp nhất dữ liệu giữa máy cục bộ và đám mây Firestore theo nguyên tắc Last-Write-Wins (E07, AC08)
- * So sánh cả cấp độ từng Project theo `updatedAt` để tránh mất mát khi cập nhật song song.
+ * Hợp nhất dữ liệu giữa máy cục bộ và đám mây Firestore theo nguyên tắc Union + Last-Write-Wins (E07, AC08)
+ * - Hợp nhất (Union) toàn bộ dự án từ cả 2 thiết bị để không bao giờ mất dự án mới tạo khi 1 máy đang tắt.
+ * - Tôn trọng danh sách `deletedProjectIds` (Tombstones) để dự án đã xóa không bị hồi sinh.
+ * - Với các dự án cùng ID ở cả 2 bên, giữ phiên bản có `project.updatedAt` mới hơn.
  * @param {Object} localState
  * @param {Object} remoteState
  * @returns {Object} AppState đã hợp nhất
@@ -292,21 +305,57 @@ export function mergeRemoteState(localState, remoteState) {
   const localNorm = normalizeAppState(localState);
   const remoteNorm = normalizeAppState(remoteState);
 
-  // Nếu remoteState mới hơn hoàn toàn ở cấp độ toàn cục (VD: xóa dự án hoặc đồng bộ toàn phần)
   const isRemoteNewerGlobal = remoteNorm.updatedAt >= localNorm.updatedAt;
-  const primaryList = isRemoteNewerGlobal ? remoteNorm.projects : localNorm.projects;
-  const secondaryMap = new Map(
-    (isRemoteNewerGlobal ? localNorm.projects : remoteNorm.projects).map((p) => [p.id, p])
-  );
+  const seedIdSet = new Set(SEED_PROJECT_IDS);
 
-  // Với các dự án cùng tồn tại ở cả 2 bên, giữ phiên bản có project.updatedAt mới hơn
-  const mergedProjects = primaryList.map((proj) => {
+  // Hợp nhất danh sách ID dự án đã bị xóa (Tombstones) từ cả 2 phía
+  const deletedSet = new Set([
+    ...(localNorm.deletedProjectIds || []),
+    ...(remoteNorm.deletedProjectIds || [])
+  ]);
+
+  // Nếu một thiết bị đã xóa dự án mẫu (seed) và đã có dự án riêng hoặc trạng thái mới hơn, đánh dấu xóa dự án mẫu đó
+  const localIds = new Set(localNorm.projects.map((p) => p.id));
+  const remoteIds = new Set(remoteNorm.projects.map((p) => p.id));
+  const localHasCustom = localNorm.projects.some((p) => !seedIdSet.has(p.id));
+  const remoteHasCustom = remoteNorm.projects.some((p) => !seedIdSet.has(p.id));
+
+  for (const seedId of seedIdSet) {
+    const deletedOnLocal = !localIds.has(seedId) && (localHasCustom || Number(localNorm.updatedAt) > 1000);
+    const deletedOnRemote = !remoteIds.has(seedId) && (remoteHasCustom || Number(remoteNorm.updatedAt) > 1000);
+    if (deletedOnLocal || deletedOnRemote) {
+      deletedSet.add(seedId);
+    }
+  }
+
+  const primaryList = isRemoteNewerGlobal ? remoteNorm.projects : localNorm.projects;
+  const secondaryList = isRemoteNewerGlobal ? localNorm.projects : remoteNorm.projects;
+  const secondaryMap = new Map(secondaryList.map((p) => [p.id, p]));
+  const seenIds = new Set();
+  const mergedProjects = [];
+
+  // 1. Duyệt danh sách chính trước (giữ thứ tự ưu tiên trên thiết bị vừa thao tác gần nhất)
+  for (const proj of primaryList) {
+    if (!proj || !proj.id || deletedSet.has(proj.id) || seenIds.has(proj.id)) continue;
+    seenIds.add(proj.id);
     const other = secondaryMap.get(proj.id);
-    if (!other) return createProject(proj);
-    return Number(other.updatedAt) > Number(proj.updatedAt)
-      ? createProject(other)
-      : createProject(proj);
-  });
+    if (!other) {
+      mergedProjects.push(createProject(proj));
+    } else {
+      mergedProjects.push(
+        Number(other.updatedAt) > Number(proj.updatedAt)
+          ? createProject(other)
+          : createProject(proj)
+      );
+    }
+  }
+
+  // 2. Hợp nhất (Union) các dự án chỉ có ở danh sách phụ (VD: dự án mới thêm trên PC khi điện thoại đang tắt)
+  for (const proj of secondaryList) {
+    if (!proj || !proj.id || deletedSet.has(proj.id) || seenIds.has(proj.id)) continue;
+    seenIds.add(proj.id);
+    mergedProjects.push(createProject(proj));
+  }
 
   // Hợp nhất activityLog (lấy max count & minutes của từng ngày để không mất chuỗi giữ lửa)
   const mergedActivityLog = { ...(localNorm.activityLog || {}) };
@@ -342,10 +391,42 @@ export function mergeRemoteState(localState, remoteState) {
     activeTimer: isRemoteNewerGlobal
       ? (remoteNorm.activeTimer ?? localNorm.activeTimer)
       : localNorm.activeTimer,
+    deletedProjectIds: Array.from(deletedSet).slice(-200),
     activityLog: mergedActivityLog,
     timerLogs: mergedTimerLogs,
     projects: mergedProjects
   };
+}
+
+/**
+ * Kiểm tra xem bản hợp nhất `mergedState` có chứa thay đổi mới từ máy cục bộ mà trên đám mây `remoteState` chưa có hay không.
+ * Dùng để quyết định có cần đẩy ngược bản hợp nhất lên Firestore hay không (tránh vòng lặp vô hạn).
+ * @param {Object} remoteState
+ * @param {Object} mergedState
+ * @returns {boolean}
+ */
+export function hasUnpushedLocalChanges(remoteState, mergedState) {
+  if (!remoteState || !Array.isArray(remoteState.projects)) return true;
+  const remoteNorm = normalizeAppState(remoteState);
+  const mergedNorm = normalizeAppState(mergedState);
+
+  if (mergedNorm.projects.length !== remoteNorm.projects.length) {
+    return true;
+  }
+
+  const remoteMap = new Map(remoteNorm.projects.map((p) => [p.id, p]));
+  for (const proj of mergedNorm.projects) {
+    const rProj = remoteMap.get(proj.id);
+    if (!rProj) return true;
+    if (Number(proj.updatedAt) > Number(rProj.updatedAt)) return true;
+  }
+
+  const remoteDeletedSet = new Set(remoteNorm.deletedProjectIds || []);
+  for (const delId of mergedNorm.deletedProjectIds || []) {
+    if (!remoteDeletedSet.has(delId)) return true;
+  }
+
+  return false;
 }
 
 /**
@@ -378,9 +459,10 @@ export function saveCloudConfig(config, storage = globalThis.localStorage) {
 /**
  * Khởi tạo kết nối đồng bộ thời gian thực với Firebase Firestore (F11, D04, AC08)
  * Nạp động Firebase Modular SDK v10.12.2 từ CDN Google gstatic khi người dùng bật Cloud Sync.
+ * Tuân thủ nguyên tắc Pull-Before-Push: luôn kéo dữ liệu từ đám mây về hợp nhất trước khi đẩy lên.
  * @param {Object} firebaseConfig - { apiKey, projectId, appId, ... }
  * @param {string} syncKey - Mã phòng đồng bộ cá nhân
- * @param {(remoteState: Object) => void} onRemoteUpdate - Callback khi có dữ liệu mới từ đám mây
+ * @param {(remoteState: Object, meta?: { source: string }) => void} onRemoteUpdate - Callback khi có dữ liệu mới từ đám mây
  * @param {(status: { state: 'connecting'|'connected'|'offline'|'error', message: string }) => void} [onStatusChange]
  */
 export async function initCloudSync(firebaseConfig, syncKey, onRemoteUpdate, onStatusChange) {
@@ -392,6 +474,7 @@ export async function initCloudSync(firebaseConfig, syncKey, onRemoteUpdate, onS
     });
     return {
       pushState: async () => false,
+      pullNow: async () => null,
       disconnect: () => {}
     };
   }
@@ -416,7 +499,47 @@ export async function initCloudSync(firebaseConfig, syncKey, onRemoteUpdate, onS
     const docRef = firestoreModule.doc(db, 'glowbar_workspaces', cleanKey);
 
     let isDisposed = false;
-    let lastPushedTimestamp = 0;
+    let lastPushedWriteId = null;
+
+    async function pullNow() {
+      if (isDisposed) return null;
+      try {
+        let snapshot = null;
+        if (typeof firestoreModule.getDocFromServer === 'function') {
+          try {
+            snapshot = await firestoreModule.getDocFromServer(docRef);
+          } catch {
+            snapshot = await firestoreModule.getDoc(docRef);
+          }
+        } else {
+          snapshot = await firestoreModule.getDoc(docRef);
+        }
+
+        if (isDisposed) return null;
+        onStatusChange?.({
+          state: 'connected',
+          message: `Đã đồng bộ đám mây (${cleanKey})`
+        });
+
+        if (snapshot && snapshot.exists()) {
+          const data = snapshot.data();
+          if (data) {
+            const normalizedRemote = normalizeAppState(data);
+            onRemoteUpdate?.(normalizedRemote, { source: 'pull' });
+            return normalizedRemote;
+          }
+        }
+        return null;
+      } catch (err) {
+        if (!isDisposed) {
+          onStatusChange?.({
+            state: 'error',
+            message: `Lỗi tải dữ liệu đám mây: ${err?.message || 'Kiểm tra kết nối mạng'}`
+          });
+        }
+        return undefined;
+      }
+    }
 
     const unsubscribe = firestoreModule.onSnapshot(
       docRef,
@@ -429,9 +552,12 @@ export async function initCloudSync(firebaseConfig, syncKey, onRemoteUpdate, onS
 
         if (snapshot.exists()) {
           const data = snapshot.data();
-          if (data && Number(data.updatedAt) > lastPushedTimestamp) {
-            onRemoteUpdate?.(normalizeAppState(data));
+          if (!data) return;
+          // Chỉ bỏ qua nếu đây đúng là tiếng vọng (echo) từ lần ghi vừa rồi của chính thiết bị này
+          if (data.lastWriteId && data.lastWriteId === lastPushedWriteId) {
+            return;
           }
+          onRemoteUpdate?.(normalizeAppState(data), { source: 'snapshot' });
         }
       },
       (err) => {
@@ -444,12 +570,21 @@ export async function initCloudSync(firebaseConfig, syncKey, onRemoteUpdate, onS
     );
 
     return {
+      pullNow,
       async pushState(state) {
         if (isDisposed) return false;
         try {
           const payload = normalizeAppState(state);
-          lastPushedTimestamp = payload.updatedAt;
-          await firestoreModule.setDoc(docRef, JSON.parse(JSON.stringify(payload)), { merge: true });
+          const writeId = generateId('sync');
+          lastPushedWriteId = writeId;
+          await firestoreModule.setDoc(
+            docRef,
+            JSON.parse(JSON.stringify({ ...payload, lastWriteId: writeId }))
+          );
+          onStatusChange?.({
+            state: 'connected',
+            message: `Đã đồng bộ đám mây (${cleanKey})`
+          });
           return true;
         } catch (err) {
           onStatusChange?.({
@@ -475,6 +610,7 @@ export async function initCloudSync(firebaseConfig, syncKey, onRemoteUpdate, onS
     });
     return {
       pushState: async () => false,
+      pullNow: async () => null,
       disconnect: () => {}
     };
   }

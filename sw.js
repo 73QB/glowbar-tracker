@@ -3,7 +3,7 @@
  * Phục vụ: F12, C01, C05, AC09
  */
 
-const CACHE_NAME = 'glowbar-pwa-cache-v4';
+const CACHE_NAME = 'glowbar-pwa-cache-v5';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -39,21 +39,20 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Tuyệt đối không can thiệp vào luồng kết nối thời gian thực của Firebase / Firestore hoặc CDN bên ngoài
+  if (!event.request.url.startsWith(self.location.origin)) return;
 
+  // Chiến lược Network-First (Ưu tiên mạng khi Online, tự động rơi về Cache khi Offline)
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && event.request.url.startsWith(self.location.origin)) {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
-          }
-          return networkResponse;
-        })
-        .catch(() => cachedResponse);
-
-      return cachedResponse || fetchPromise;
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 

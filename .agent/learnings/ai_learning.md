@@ -71,12 +71,12 @@
 
 | Mục | Giá trị |
 |---|---|
-| **Phiên bản hiện tại** | `V2.1` (Hoàn thiện 11 tính năng quản lý nâng cao, OLED Dark, Streak Heatmap & Cảnh báo đóng băng $\ge 3$ ngày) |
-| **Task vừa hoàn thành** | `T7.4 — Dự báo Ngày Đích (ETA), Nhật ký Giờ Focus Timer & Nhập File JSON 2 Chiều` |
+| **Phiên bản hiện tại** | `V2.2` (Đồng bộ đa thiết bị Pull-Before-Push & Union Merge + Tối ưu UX nút `+10%`/`-10%` và Toast đơn) |
+| **Task vừa hoàn thành** | `Khắc phục triệt để đồng bộ 2 chiều PC ↔ Điện thoại khi mở web lệch thời điểm` |
 | **Task kế tiếp** | Hệ thống đang vận hành hoàn thiện ở trạng thái tốt nhất |
-| **Tình trạng build / test** | ✅ **14/14 Test Cases PASS** (Kiểm chứng trên V8 Chromium Headless & HTTP Server) |
+| **Tình trạng build / test** | ✅ **15/15 Test Cases PASS** (Kiểm chứng trên V8 Chromium Headless & HTTP Server) |
 | **Triển khai trực tuyến** | GitHub Pages: `https://73qb.github.io/glowbar-tracker/` · Firestore Cloud Sync: `Spark Plan` active |
-| **Cập nhật lần cuối** | `2026-11-08` |
+| **Cập nhật lần cuối** | `2026-11-12` |
 
 ## B2. Kiến thức kỹ thuật cốt lõi đang áp dụng
 
@@ -107,6 +107,7 @@
 
 - **L01 — Môi trường chạy ES Modules:** Dùng `tests/test-harness.js` kết hợp `tests/runner.html` và `tests/run-all.js` để bộ kiểm thử chạy được trên cả trình duyệt thực tế (Chromium V8) lẫn Node.js (`node --test` / `node tests/run-all.js`) mà không phụ thuộc thư viện ngoài.
 - **L02 — Quyền truy cập ổ đĩa ảo Google Drive (`G:\My Drive`) trong Sandbox:** Khi chạy server cục bộ `python -m http.server` trên thư mục Google Drive của Windows, cần chạy bên ngoài AppContainer sandbox để socket loopback và quyền đọc file hoạt động trơn tru.
+- **L03 — Nguyên tắc Pull-Before-Push & Union Merge khi đồng bộ nhiều thiết bị (`sync.js`):** Khi một thiết bị (như điện thoại) mở web muộn hơn sau khi máy tính đã thêm dự án, tuyệt đối không gọi `pushState(appState)` trước khi kéo dữ liệu từ Firestore (`pullNow()`), đồng thời `mergeRemoteState` phải hợp nhất (Union) danh sách `projects` từ cả hai phía kèm `deletedProjectIds` (Tombstones) và dùng `lastWriteId` thay vì so sánh đồng hồ hệ thống giữa các máy.
 
 ## B5. Lịch sử phiên bản & Mốc khôi phục (V..)
 
@@ -129,3 +130,8 @@
 - **File thay đổi:** `src/core/models.js`, `src/core/calculator.js`, `src/services/sync.js`, `src/ui/app.js`, `src/styles/main.css`, `index.html`, `sw.js`, `tests/calculator.test.js`.
 - **Kết quả kiểm thử:** **14/14 PASS** trên V8 Chromium Headless.
 - **Điểm khôi phục:** Commit Git `008cb5e` trên nhánh `main`.
+
+### V2.2 — Khắc Phục Đồng Bộ Đa Thiết Bị (Pull-Before-Push & Union Merge) & Tối Ưu UX · `2026-11-12`
+- **Đạt được:** Cố định vị trí nút `+10%` bằng cách đưa `-10%` ra sau nút Hoàn thành; loại bỏ cộng dồn popup Toast (chỉ hiển thị duy nhất thông báo mới nhất); sửa lỗi mất đồng bộ khi mở web trên điện thoại muộn hơn máy tính bằng cơ chế Pull-Before-Push (`pullNow()` dùng `getDocFromServer`), hợp nhất Union danh sách `projects` kèm `deletedProjectIds`, tự động đồng bộ lại khi mở lại tab (`visibilitychange` / `online`), và nâng cấp `sw.js` lên `v5` (Network-First + không can thiệp kết nối ngoại vi Firestore).
+- **File thay đổi:** `src/services/sync.js`, `src/ui/app.js`, `index.html`, `sw.js`, `tests/sync.test.js`.
+- **Kết quả kiểm thử:** **15/15 PASS** trên V8 Chromium Headless.

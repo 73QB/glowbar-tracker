@@ -56,5 +56,34 @@ describe('M08 · sync.js — Lưu trữ Offline-first & Hợp nhất dữ liệu
     assert.equal(p1.title, 'Bản mới từ Điện thoại', 'p1 phải lấy bản mới hơn từ Remote (3000 > 1000)');
     assert.equal(p2.title, 'Bản mới hơn trên máy', 'p2 phải giữ bản mới hơn từ Local (5000 > 2000)');
   });
+
+  it('[AC08, E07] Hợp nhất Union: Không làm mất dự án mới thêm trên PC khi Điện thoại mở web muộn hơn, đồng thời tôn trọng deletedProjectIds', () => {
+    // Điện thoại mở muộn hơn nhưng danh sách cục bộ chỉ có p1 và p2 (p2 đã bị xóa trên PC)
+    const phoneLocalState = {
+      updatedAt: 9000,
+      deletedProjectIds: [],
+      projects: [
+        { id: 'p1', title: 'Dự án Chung', mode: 'fixed', updatedAt: 2000, subTasks: [] },
+        { id: 'p2', title: 'Dự án Đã Xóa Trên PC', mode: 'fixed', updatedAt: 2000, subTasks: [] }
+      ]
+    };
+
+    // Đám mây (do PC đẩy lên lúc điện thoại tắt) có thêm dự án p3 mới và đã đánh dấu xóa p2
+    const cloudRemoteState = {
+      updatedAt: 6000,
+      deletedProjectIds: ['p2'],
+      projects: [
+        { id: 'p1', title: 'Dự án Chung', mode: 'fixed', updatedAt: 2000, subTasks: [] },
+        { id: 'p3', title: 'Khóa Luận Tốt Nghiệp (Tạo trên PC)', mode: 'time_pool', updatedAt: 6000, subTasks: [] }
+      ]
+    };
+
+    const merged = mergeRemoteState(phoneLocalState, cloudRemoteState);
+    const ids = merged.projects.map((p) => p.id);
+
+    assert.ok(ids.includes('p1'), 'Giữ nguyên dự án chung p1');
+    assert.ok(ids.includes('p3'), 'Bắt buộc giữ được dự án mới p3 tạo trên PC dù Điện thoại mở muộn hơn');
+    assert.ok(!ids.includes('p2'), 'Loại bỏ dự án p2 đã nằm trong deletedProjectIds');
+  });
 });
 
