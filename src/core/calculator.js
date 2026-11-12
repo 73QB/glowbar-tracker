@@ -117,19 +117,25 @@ export function calculateMasterProgress(project) {
  */
 function appendProgressHistory(history = [], dateKey, addMinutes, addPercent) {
   const safeList = Array.isArray(history) ? history.map((h) => ({ ...h })) : [];
-  const mins = Math.max(0, Math.round((Number(addMinutes) || 0) * 10) / 10);
-  const pct = Math.max(0, Math.round((Number(addPercent) || 0) * 10) / 10);
-  if (mins <= 0 && pct <= 0) return safeList;
+  const mins = Math.round((Number(addMinutes) || 0) * 10) / 10;
+  const pct = Math.round((Number(addPercent) || 0) * 10) / 10;
+  if (mins === 0 && pct === 0) return safeList;
 
   const idx = safeList.findIndex((item) => item.date === dateKey);
   if (idx >= 0) {
+    const nextMins = Math.max(0, Math.round(((Number(safeList[idx].deltaMinutes) || 0) + mins) * 10) / 10);
+    const nextPct = Math.max(0, Math.round(((Number(safeList[idx].deltaPercent) || 0) + pct) * 10) / 10);
     safeList[idx] = {
       date: dateKey,
-      deltaMinutes: Math.round(((Number(safeList[idx].deltaMinutes) || 0) + mins) * 10) / 10,
-      deltaPercent: Math.round(((Number(safeList[idx].deltaPercent) || 0) + pct) * 10) / 10
+      deltaMinutes: nextMins,
+      deltaPercent: nextPct
     };
-  } else {
-    safeList.push({ date: dateKey, deltaMinutes: mins, deltaPercent: pct });
+  } else if (mins > 0 || pct > 0) {
+    safeList.push({
+      date: dateKey,
+      deltaMinutes: Math.max(0, mins),
+      deltaPercent: Math.max(0, pct)
+    });
   }
   return safeList.slice(-60);
 }
@@ -166,11 +172,9 @@ export function applyQuickAction(project, subTaskId, deltaPercent, nowMs = Date.
       ? Number(st.estimatedMinutes)
       : 60;
 
-    // D02: Quy đổi phần trăm thực thay đổi sang số phút tương ứng
+    // D02: Quy đổi phần trăm thực thay đổi sang số phút tương ứng (hỗ trợ cả cộng và trừ)
     const deltaMinutes = (actualDeltaPercent / 100) * estimated;
-    if (deltaMinutes > 0) {
-      totalAddedMinutes += deltaMinutes;
-    }
+    totalAddedMinutes += deltaMinutes;
     const newSpentMinutes = Math.max(0, Math.round((Number(st.spentMinutes || 0) + deltaMinutes) * 10) / 10);
 
     return createSubTask({
@@ -186,10 +190,11 @@ export function applyQuickAction(project, subTaskId, deltaPercent, nowMs = Date.
     updatedAt: nowMs
   });
   const nextMaster = calculateMasterProgress(tempProj);
-  const masterDeltaPct = Math.max(0, nextMaster.percent - prevMaster.percent);
+  const masterDeltaPct = nextMaster.percent - prevMaster.percent;
 
   const isPositiveProgress = delta > 0 && (totalAddedMinutes > 0 || masterDeltaPct > 0);
-  const nextHistory = isPositiveProgress
+  const hasAnyDelta = totalAddedMinutes !== 0 || masterDeltaPct !== 0;
+  const nextHistory = hasAnyDelta
     ? appendProgressHistory(project.progressHistory, formatDateKey(nowMs), totalAddedMinutes, masterDeltaPct)
     : (project.progressHistory || []);
 
@@ -554,6 +559,16 @@ export function forecastProjectCompletion(project, nowMs = Date.now()) {
       daysRemaining: 0,
       targetDateStr: null,
       label: '🎉 Đã về đích 100%'
+    };
+  }
+
+  // Nếu dự án hiện tại đang ở mức 0% (0 phút tích lũy) thì chưa dự báo ngày đích
+  if (calc.percent <= 0 && calc.spentMinutes <= 0) {
+    return {
+      status: 'stalled',
+      daysRemaining: null,
+      targetDateStr: null,
+      label: '⏳ Cần thêm tiến độ để dự báo ngày đích'
     };
   }
 
