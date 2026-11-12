@@ -136,14 +136,24 @@ export function formatSafeNoteHtml(rawNote) {
   );
 }
 
+let activeToastTimeout = null;
+
 /**
- * Hiển thị thông báo ngắn (Toast), có thể kèm nút Hoàn tác (Undo) trực tiếp
+ * Hiển thị thông báo ngắn (Toast), chỉ giữ 1 thông báo mới nhất (không cộng dồn gây vướng)
  * @param {string} message
  * @param {{ showUndo?: boolean, onAction?: () => void, label?: string }} [actionOptions]
  */
 function showToast(message, actionOptions = null) {
   const container = document.getElementById('toastContainer');
   if (!container) return;
+
+  // Xóa bỏ thông báo cũ ngay lập tức để không bị cộng dồn popup, chỉ giữ duy nhất thông báo mới nhất
+  if (activeToastTimeout) {
+    clearTimeout(activeToastTimeout);
+    activeToastTimeout = null;
+  }
+  container.innerHTML = '';
+
   const toast = document.createElement('div');
   toast.className = 'toast';
 
@@ -160,6 +170,10 @@ function showToast(message, actionOptions = null) {
     actionBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       toast.remove();
+      if (activeToastTimeout) {
+        clearTimeout(activeToastTimeout);
+        activeToastTimeout = null;
+      }
       if (typeof actionOptions.onAction === 'function') {
         actionOptions.onAction();
       } else {
@@ -170,9 +184,10 @@ function showToast(message, actionOptions = null) {
   }
 
   container.appendChild(toast);
-  setTimeout(() => {
+  activeToastTimeout = setTimeout(() => {
     toast.remove();
-  }, actionOptions?.showUndo ? 5500 : 3200);
+    activeToastTimeout = null;
+  }, actionOptions?.showUndo ? 4500 : 2500);
 }
 
 /**
@@ -660,11 +675,6 @@ export function renderDashboard(state = appState) {
 
               <div class="sub-bar__actions">
                 <div class="sub-bar__quick-btns">
-                  ${sub.progressPercent > 0 ? `
-                    <button type="button" class="sub-bar__action-btn sub-bar__action-btn--minus" data-action="quick-add" data-project-id="${escapeHtml(proj.id)}" data-sub-id="${escapeHtml(sub.id)}" data-delta="-10" title="Giảm -10% nếu lỡ bấm nhầm">
-                      -10%
-                    </button>
-                  ` : ''}
                   <button type="button" class="sub-bar__action-btn" data-action="quick-add" data-project-id="${escapeHtml(proj.id)}" data-sub-id="${escapeHtml(sub.id)}" data-delta="10">
                     +10%
                   </button>
@@ -674,6 +684,11 @@ export function renderDashboard(state = appState) {
                   <button type="button" class="sub-bar__action-btn sub-bar__action-btn--done" data-action="quick-add" data-project-id="${escapeHtml(proj.id)}" data-sub-id="${escapeHtml(sub.id)}" data-delta="100">
                     ✓ Hoàn thành
                   </button>
+                  ${sub.progressPercent > 0 ? `
+                    <button type="button" class="sub-bar__action-btn sub-bar__action-btn--minus" data-action="quick-add" data-project-id="${escapeHtml(proj.id)}" data-sub-id="${escapeHtml(sub.id)}" data-delta="-10" title="Giảm -10% nếu lỡ bấm nhầm">
+                      -10%
+                    </button>
+                  ` : ''}
                 </div>
 
                 <div class="sub-bar__quick-btns">
